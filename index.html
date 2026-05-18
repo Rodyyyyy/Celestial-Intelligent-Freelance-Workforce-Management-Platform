@@ -1,0 +1,4056 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Celestial — Enterprise Freelance Platform</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    :root {
+      --bg-void: #060812;
+      --bg-deep: #0b0f1e;
+      --bg-surface: #0f1628;
+      --bg-elevated: #1a2235;
+      --bg-hover: #1f2d45;
+      --border-dim: rgba(99, 120, 180, 0.14);
+      --border-glow: rgba(139, 168, 255, 0.28);
+      --text-star: #eef2ff;
+      --text-moon: #a8b4d4;
+      --text-nebula: #5e6e9a;
+      --accent-aurora: #7c9eff;
+      --accent-nova: #a78bfa;
+      --accent-pulsar: #34d399;
+      --accent-flare: #fbbf24;
+      --accent-red: #f87171;
+      --accent-cyan: #22d3ee;
+      --accent-pink: #f472b6;
+      --sidebar-w: 240px;
+      --nav-h: 60px;
+      --trans: all .25s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .light {
+      --bg-void: #f0f4ff;
+      --bg-deep: #e4ebff;
+      --bg-surface: #ffffff;
+      --bg-elevated: #f2f5ff;
+      --bg-hover: #e8edff;
+      --border-dim: rgba(99, 120, 180, 0.18);
+      --border-glow: rgba(80, 100, 200, 0.3);
+      --text-star: #0d1535;
+      --text-moon: #2e3d6a;
+      --text-nebula: #6575a8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-void);
+      color: var(--text-star);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    .brand-name,
+    .section-title {
+      font-family: 'Syne', sans-serif;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, var(--accent-aurora), var(--accent-nova));
+      border-radius: 10px;
+    }
+
+    /* ══════════════════════════════════════
+   GALAXY CANVAS
+══════════════════════════════════════ */
+    #galaxy-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      transition: opacity .5s;
+    }
+
+    #app-shell #galaxy-canvas {
+      opacity: 0.35;
+    }
+
+    #auth-screen #galaxy-canvas {
+      opacity: 0.85;
+    }
+
+    /* ══════════════════════════════════════
+   LIGHT MODE AURORA BACKGROUND
+══════════════════════════════════════ */
+    #aurora-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      display: none;
+      overflow: hidden;
+    }
+
+    .light #aurora-bg {
+      display: block;
+    }
+
+    .light #galaxy-canvas {
+      display: none;
+    }
+
+    .aurora-wave {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      animation: auroraFloat var(--dur, 12s) ease-in-out infinite alternate;
+      opacity: 0.45;
+    }
+
+    @keyframes auroraFloat {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      100% {
+        transform: translate(var(--tx, 40px), var(--ty, 30px)) scale(1.1);
+      }
+    }
+
+    /* ══════════════════════════════════════
+   AUTH
+══════════════════════════════════════ */
+    #auth-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .auth-panel {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      width: 920px;
+      max-width: 96vw;
+      min-height: 560px;
+      border-radius: 26px;
+      overflow: hidden;
+      border: 1px solid var(--border-glow);
+      box-shadow: 0 50px 100px rgba(0, 0, 0, .7), 0 0 0 1px rgba(124, 158, 255, .05);
+      backdrop-filter: blur(20px);
+    }
+
+    .auth-visual {
+      flex: 1;
+      background: linear-gradient(145deg, rgba(12, 20, 50, .95) 0%, rgba(20, 12, 50, .9) 100%);
+      padding: 52px 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-visual-rings {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(124, 158, 255, .1);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: ringPulse var(--rd, 6s) ease-in-out infinite alternate;
+    }
+
+    @keyframes ringPulse {
+      0% {
+        opacity: .15;
+        transform: translate(-50%, -50%) scale(.95);
+      }
+
+      100% {
+        opacity: .4;
+        transform: translate(-50%, -50%) scale(1.05);
+      }
+    }
+
+    .auth-logo {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+    }
+
+    .logo-orb {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c9eff, #a78bfa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 28px rgba(124, 158, 255, .45);
+    }
+
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+    }
+
+    .auth-tagline {
+      font-size: 12px;
+      color: var(--text-nebula);
+      letter-spacing: .5px;
+      margin-top: 3px;
+    }
+
+    .auth-orbit-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.25;
+      max-width: 300px;
+    }
+
+    .auth-orbit-text span {
+      background: linear-gradient(135deg, #7c9eff, #a78bfa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .auth-orbit-sub {
+      color: var(--text-moon);
+      font-size: 13px;
+      margin-top: 14px;
+      line-height: 1.75;
+      max-width: 270px;
+    }
+
+    .auth-form-side {
+      width: 390px;
+      background: var(--bg-surface);
+      padding: 52px 42px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-form-side h2 {
+      font-size: 21px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .auth-form-side>p {
+      color: var(--text-moon);
+      font-size: 13px;
+      margin-bottom: 30px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-elevated);
+      border-radius: 12px;
+      padding: 5px;
+      margin-bottom: 28px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      background: transparent;
+      color: var(--text-moon);
+      border-radius: 9px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      transition: var(--trans);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-void);
+      color: var(--text-star);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .4);
+    }
+
+    .form-field {
+      margin-bottom: 17px;
+    }
+
+    .form-field label {
+      display: block;
+      font-size: 11.5px;
+      color: var(--text-moon);
+      margin-bottom: 7px;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 10px;
+      color: var(--text-star);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: var(--trans);
+    }
+
+    .form-input:focus {
+      border-color: var(--accent-aurora);
+      box-shadow: 0 0 0 3px rgba(124, 158, 255, .12);
+    }
+
+    .form-select {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 10px;
+      color: var(--text-star);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      appearance: none;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #7c9eff, #a78bfa);
+      border: none;
+      border-radius: 11px;
+      color: white;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      cursor: pointer;
+      transition: var(--trans);
+    }
+
+    .btn-primary:hover {
+      opacity: .9;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(124, 158, 255, .3);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .demo-hint {
+      margin-bottom: 18px;
+      padding: 10px 12px;
+      background: rgba(124, 158, 255, .06);
+      border: 1px solid rgba(124, 158, 255, .15);
+      border-radius: 8px;
+      font-size: 11.5px;
+      color: var(--text-nebula);
+      line-height: 1.7;
+    }
+
+    .demo-hint code {
+      color: var(--accent-aurora);
+      background: rgba(124, 158, 255, .1);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .skills-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .skill-chip {
+      padding: 4px 10px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-dim);
+      border-radius: 20px;
+      color: var(--text-moon);
+      font-size: 12px;
+      cursor: pointer;
+      transition: var(--trans);
+    }
+
+    .skill-chip.selected {
+      background: rgba(124, 158, 255, .15);
+      border-color: var(--accent-aurora);
+      color: var(--accent-aurora);
+    }
+
+    /* ══════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════ */
+    #app-shell {
+      display: none;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #app-shell.visible {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .api-banner {
+      height: 34px;
+      background: linear-gradient(90deg, rgba(124, 158, 255, .08), rgba(167, 139, 250, .08));
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      font-size: 11.5px;
+      color: var(--text-nebula);
+      flex-shrink: 0;
+    }
+
+    .api-banner select {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      color: var(--text-moon);
+      padding: 2px 8px;
+      font-size: 11.5px;
+      outline: none;
+    }
+
+    .top-bar {
+      height: var(--nav-h);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 14px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+    }
+
+    .hamburger {
+      background: none;
+      border: none;
+      color: var(--text-moon);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 7px;
+      border-radius: 9px;
+      transition: var(--trans);
+    }
+
+    .hamburger:hover {
+      color: var(--text-star);
+      background: var(--bg-elevated);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topbar-logo .logo-orb {
+      width: 30px;
+      height: 30px;
+      font-size: 12px;
+      box-shadow: 0 0 14px rgba(124, 158, 255, .35);
+    }
+
+    .topbar-brand {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .topbar-title {
+      flex: 1;
+      padding-left: 18px;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-moon);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-moon);
+      font-size: 16px;
+      transition: var(--trans);
+      position: relative;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-star);
+      border-color: var(--border-glow);
+    }
+
+    .notif-dot {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 7px;
+      height: 7px;
+      background: var(--accent-red);
+      border-radius: 50%;
+      border: 2px solid var(--bg-surface);
+    }
+
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border-dim);
+      border-radius: 9px;
+      padding: 6px 11px;
+      color: var(--text-moon);
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--trans);
+    }
+
+    .theme-toggle:hover {
+      color: var(--text-star);
+      border-color: var(--border-glow);
+    }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 5px 13px 5px 5px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 20px;
+      cursor: pointer;
+    }
+
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c9eff, #a78bfa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      font-size: 13px;
+      color: var(--text-star);
+      font-weight: 500;
+    }
+
+    .user-role {
+      font-size: 10px;
+      color: var(--text-nebula);
+    }
+
+    /* ══════════════════════════════════════
+   BODY LAYOUT
+══════════════════════════════════════ */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-dim);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: width .3s cubic-bezier(.4, 0, .2, 1);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    .sidebar.collapsed {
+      width: 56px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 8px;
+    }
+
+    .nav-section-label {
+      font-size: 9.5px;
+      letter-spacing: 1.8px;
+      color: var(--text-nebula);
+      padding: 14px 10px 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      font-family: 'Syne', sans-serif;
+      text-transform: uppercase;
+      opacity: 1;
+      transition: var(--trans);
+    }
+
+    .sidebar.collapsed .nav-section-label {
+      opacity: 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--text-moon);
+      transition: var(--trans);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      font-size: 13px;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-star);
+    }
+
+    .nav-item.active {
+      background: rgba(124, 158, 255, .14);
+      color: var(--accent-aurora);
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 20%;
+      bottom: 20%;
+      width: 3px;
+      background: linear-gradient(180deg, var(--accent-aurora), var(--accent-nova));
+      border-radius: 0 3px 3px 0;
+    }
+
+    .nav-item i {
+      font-size: 16px;
+      flex-shrink: 0;
+      width: 20px;
+      text-align: center;
+    }
+
+    .nav-item span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: opacity .2s;
+    }
+
+    .sidebar.collapsed .nav-item span {
+      opacity: 0;
+      width: 0;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: rgba(124, 158, 255, .2);
+      color: var(--accent-aurora);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 20px;
+      min-width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar.collapsed .nav-badge {
+      opacity: 0;
+    }
+
+    .sidebar-footer {
+      padding: 10px 8px;
+      border-top: 1px solid var(--border-dim);
+    }
+
+    .logout-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--accent-red);
+      transition: var(--trans);
+      font-size: 13px;
+      width: 100%;
+      background: none;
+      border: none;
+    }
+
+    .logout-btn:hover {
+      background: rgba(248, 113, 113, .1);
+    }
+
+    .sidebar.collapsed .logout-btn span {
+      display: none;
+    }
+
+    /* ══════════════════════════════════════
+   MAIN CONTENT
+══════════════════════════════════════ */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--bg-void);
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .page-sub {
+      font-size: 13px;
+      color: var(--text-nebula);
+      margin-top: 3px;
+    }
+
+    /* ══════════════════════════════════════
+   STAT CARDS
+══════════════════════════════════════ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-dim);
+      border-radius: 16px;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      transition: var(--trans);
+      cursor: default;
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .3);
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      opacity: .5;
+    }
+
+    .stat-card.blue::after {
+      background: radial-gradient(circle, rgba(124, 158, 255, .2), transparent 70%);
+    }
+
+    .stat-card.violet::after {
+      background: radial-gradient(circle, rgba(167, 139, 250, .2), transparent 70%);
+    }
+
+    .stat-card.green::after {
+      background: radial-gradient(circle, rgba(52, 211, 153, .2), transparent 70%);
+    }
+
+    .stat-card.amber::after {
+      background: radial-gradient(circle, rgba(251, 191, 36, .2), transparent 70%);
+    }
+
+    .stat-card.red::after {
+      background: radial-gradient(circle, rgba(248, 113, 113, .2), transparent 70%);
+    }
+
+    .stat-card.cyan::after {
+      background: radial-gradient(circle, rgba(34, 211, 238, .2), transparent 70%);
+    }
+
+    .stat-card.pink::after {
+      background: radial-gradient(circle, rgba(244, 114, 182, .2), transparent 70%);
+    }
+
+    .stat-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      margin-bottom: 14px;
+    }
+
+    .stat-icon.blue {
+      background: rgba(124, 158, 255, .15);
+      color: var(--accent-aurora);
+    }
+
+    .stat-icon.violet {
+      background: rgba(167, 139, 250, .15);
+      color: var(--accent-nova);
+    }
+
+    .stat-icon.green {
+      background: rgba(52, 211, 153, .15);
+      color: var(--accent-pulsar);
+    }
+
+    .stat-icon.amber {
+      background: rgba(251, 191, 36, .15);
+      color: var(--accent-flare);
+    }
+
+    .stat-icon.red {
+      background: rgba(248, 113, 113, .15);
+      color: var(--accent-red);
+    }
+
+    .stat-icon.cyan {
+      background: rgba(34, 211, 238, .15);
+      color: var(--accent-cyan);
+    }
+
+    .stat-icon.pink {
+      background: rgba(244, 114, 182, .15);
+      color: var(--accent-pink);
+    }
+
+    .stat-label {
+      font-size: 11.5px;
+      color: var(--text-nebula);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .stat-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .stat-delta {
+      font-size: 11px;
+      color: var(--accent-pulsar);
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .stat-delta.neg {
+      color: var(--accent-red);
+    }
+
+    .stat-sparkline {
+      margin-top: 10px;
+      opacity: .6;
+    }
+
+    /* ══════════════════════════════════════
+   CARDS
+══════════════════════════════════════ */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-dim);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: var(--trans);
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .card+.card {
+      margin-top: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    @media(max-width:900px) {
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ══════════════════════════════════════
+   TABLE
+══════════════════════════════════════ */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      padding: 10px 16px;
+      font-size: 10.5px;
+      letter-spacing: 1px;
+      color: var(--text-nebula);
+      border-bottom: 1px solid var(--border-dim);
+      text-align: left;
+      font-family: 'Syne', sans-serif;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    .data-table td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border-dim);
+      font-size: 13px;
+      color: var(--text-moon);
+      vertical-align: middle;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-elevated);
+    }
+
+    .data-table td strong {
+      color: var(--text-star);
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════════════════
+   BADGES
+══════════════════════════════════════ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .badge-blue {
+      background: rgba(124, 158, 255, .15);
+      color: var(--accent-aurora);
+    }
+
+    .badge-green {
+      background: rgba(52, 211, 153, .15);
+      color: var(--accent-pulsar);
+    }
+
+    .badge-amber {
+      background: rgba(251, 191, 36, .15);
+      color: var(--accent-flare);
+    }
+
+    .badge-red {
+      background: rgba(248, 113, 113, .15);
+      color: var(--accent-red);
+    }
+
+    .badge-violet {
+      background: rgba(167, 139, 250, .15);
+      color: var(--accent-nova);
+    }
+
+    .badge-gray {
+      background: var(--bg-elevated);
+      color: var(--text-nebula);
+    }
+
+    .badge-cyan {
+      background: rgba(34, 211, 238, .15);
+      color: var(--accent-cyan);
+    }
+
+    .badge-pink {
+      background: rgba(244, 114, 182, .15);
+      color: var(--accent-pink);
+    }
+
+    /* ══════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════ */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 9px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      transition: var(--trans);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent-aurora), var(--accent-nova));
+      color: white;
+    }
+
+    .btn-accent:hover {
+      opacity: .9;
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: var(--bg-elevated);
+      color: var(--text-moon);
+      border: 1px solid var(--border-dim);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text-star);
+      border-color: var(--border-glow);
+    }
+
+    .btn-danger {
+      background: rgba(248, 113, 113, .12);
+      color: var(--accent-red);
+      border: 1px solid rgba(248, 113, 113, .2);
+    }
+
+    .btn-success {
+      background: rgba(52, 211, 153, .12);
+      color: var(--accent-pulsar);
+      border: 1px solid rgba(52, 211, 153, .2);
+    }
+
+    .btn-sm {
+      padding: 5px 12px;
+      font-size: 11.5px;
+    }
+
+    /* ══════════════════════════════════════
+   PROGRESS
+══════════════════════════════════════ */
+    .progress-bar {
+      height: 6px;
+      background: var(--bg-elevated);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width .8s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .progress-fill.blue {
+      background: linear-gradient(90deg, var(--accent-aurora), var(--accent-nova));
+    }
+
+    .progress-fill.green {
+      background: var(--accent-pulsar);
+    }
+
+    .progress-fill.amber {
+      background: var(--accent-flare);
+    }
+
+    .progress-fill.red {
+      background: var(--accent-red);
+    }
+
+    .progress-fill.cyan {
+      background: var(--accent-cyan);
+    }
+
+    /* ══════════════════════════════════════
+   PHASE TRACKER
+══════════════════════════════════════ */
+    .phase-track {
+      display: flex;
+      gap: 0;
+      margin-bottom: 22px;
+    }
+
+    .phase-track-item {
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+
+    .phase-track-item::before {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: -50%;
+      width: 100%;
+      height: 2px;
+      background: var(--border-dim);
+      z-index: 0;
+    }
+
+    .phase-track-item:first-child::before {
+      display: none;
+    }
+
+    .phase-track-item.done::before,
+    .phase-track-item.active::before {
+      background: linear-gradient(90deg, var(--accent-pulsar), var(--accent-aurora));
+    }
+
+    .ptc {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid var(--border-dim);
+      background: var(--bg-surface);
+      margin: 0 auto 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      position: relative;
+      z-index: 1;
+      color: var(--text-nebula);
+    }
+
+    .phase-track-item.done .ptc {
+      border-color: var(--accent-pulsar);
+      background: rgba(52, 211, 153, .15);
+      color: var(--accent-pulsar);
+    }
+
+    .phase-track-item.active .ptc {
+      border-color: var(--accent-aurora);
+      background: rgba(124, 158, 255, .15);
+      color: var(--accent-aurora);
+      box-shadow: 0 0 0 5px rgba(124, 158, 255, .15);
+    }
+
+    .ptl {
+      font-size: 11px;
+      color: var(--text-nebula);
+    }
+
+    .phase-track-item.done .ptl,
+    .phase-track-item.active .ptl {
+      color: var(--text-moon);
+    }
+
+    /* ══════════════════════════════════════
+   TIMELINE
+══════════════════════════════════════ */
+    .timeline {
+      padding-left: 24px;
+      border-left: 2px solid var(--border-dim);
+    }
+
+    .timeline-item {
+      position: relative;
+      padding: 0 0 18px 20px;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: -25px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--accent-aurora);
+      background: var(--bg-void);
+      top: 4px;
+    }
+
+    .timeline-dot.done {
+      background: var(--accent-aurora);
+    }
+
+    .timeline-label {
+      font-size: 13px;
+      color: var(--text-moon);
+      font-weight: 500;
+    }
+
+    .timeline-meta {
+      font-size: 12px;
+      color: var(--text-nebula);
+      margin-top: 2px;
+    }
+
+    /* ══════════════════════════════════════
+   TASK / PHASE ITEMS
+══════════════════════════════════════ */
+    .phase-item {
+      padding: 14px 16px;
+      border: 1px solid var(--border-dim);
+      border-radius: 13px;
+      margin-bottom: 10px;
+      background: var(--bg-elevated);
+      transition: var(--trans);
+    }
+
+    .phase-item:hover {
+      border-color: var(--border-glow);
+    }
+
+    .phase-title {
+      font-weight: 600;
+      color: var(--text-star);
+      font-size: 13px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .phase-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-nebula);
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      transition: var(--trans);
+    }
+
+    .task-item:hover {
+      border-color: var(--border-glow);
+      background: var(--bg-hover);
+    }
+
+    .task-check {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-glow);
+      border-radius: 5px;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-pulsar);
+      font-size: 11px;
+      transition: var(--trans);
+    }
+
+    .task-check.done {
+      background: rgba(52, 211, 153, .15);
+      border-color: var(--accent-pulsar);
+    }
+
+    .task-label {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-moon);
+    }
+
+    .task-label.done {
+      text-decoration: line-through;
+      color: var(--text-nebula);
+    }
+
+    /* ══════════════════════════════════════
+   ALERT
+══════════════════════════════════════ */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .alert-warn {
+      background: rgba(251, 191, 36, .1);
+      border: 1px solid rgba(251, 191, 36, .2);
+      color: var(--accent-flare);
+    }
+
+    .alert-info {
+      background: rgba(124, 158, 255, .1);
+      border: 1px solid rgba(124, 158, 255, .2);
+      color: var(--accent-aurora);
+    }
+
+    .alert-danger {
+      background: rgba(248, 113, 113, .1);
+      border: 1px solid rgba(248, 113, 113, .2);
+      color: var(--accent-red);
+    }
+
+    .alert-success {
+      background: rgba(52, 211, 153, .1);
+      border: 1px solid rgba(52, 211, 153, .2);
+      color: var(--accent-pulsar);
+    }
+
+    /* ══════════════════════════════════════
+   SKILL BARS
+══════════════════════════════════════ */
+    .skill-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .skill-name {
+      width: 110px;
+      font-size: 12px;
+      color: var(--text-moon);
+      flex-shrink: 0;
+    }
+
+    .skill-track {
+      flex: 1;
+      height: 5px;
+      background: var(--bg-hover);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .skill-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent-aurora), var(--accent-nova));
+    }
+
+    .skill-score {
+      font-size: 12px;
+      color: var(--text-nebula);
+      width: 32px;
+      text-align: right;
+    }
+
+    /* ══════════════════════════════════════
+   MODAL
+══════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 6, 16, .85);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      padding: 30px;
+      width: 540px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      transform: scale(.96);
+      transition: transform .2s;
+    }
+
+    .modal-overlay.open .modal {
+      transform: scale(1);
+    }
+
+    .modal-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .modal-sub {
+      font-size: 12px;
+      color: var(--text-nebula);
+      margin-bottom: 22px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    /* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+    #toast-zone {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 12px 18px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-glow);
+      border-radius: 12px;
+      font-size: 13px;
+      color: var(--text-star);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn .25s ease;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .5);
+    }
+
+    .toast.success {
+      border-left: 3px solid var(--accent-pulsar);
+    }
+
+    .toast.error {
+      border-left: 3px solid var(--accent-red);
+    }
+
+    .toast.info {
+      border-left: 3px solid var(--accent-aurora);
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* ══════════════════════════════════════
+   NOTIFICATION PANEL
+══════════════════════════════════════ */
+    .notif-panel {
+      position: absolute;
+      top: 46px;
+      right: 0;
+      width: 330px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      z-index: 50;
+      box-shadow: 0 24px 50px rgba(0, 0, 0, .6);
+      display: none;
+    }
+
+    .notif-panel.open {
+      display: block;
+    }
+
+    .notif-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .notif-item {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border-dim);
+      cursor: pointer;
+      transition: var(--trans);
+    }
+
+    .notif-item:last-child {
+      border-bottom: none;
+    }
+
+    .notif-item:hover {
+      background: var(--bg-elevated);
+    }
+
+    .notif-dot-item {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-aurora);
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+
+    .notif-title-text {
+      font-size: 13px;
+      color: var(--text-star);
+      font-weight: 500;
+    }
+
+    .notif-body-text {
+      font-size: 12px;
+      color: var(--text-nebula);
+      margin-top: 2px;
+    }
+
+    /* ══════════════════════════════════════
+   RADIAL CHART
+══════════════════════════════════════ */
+    .radial-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ══════════════════════════════════════
+   MISC
+══════════════════════════════════════ */
+    .divider {
+      height: 1px;
+      background: var(--border-dim);
+      margin: 18px 0;
+    }
+
+    .text-accent {
+      color: var(--accent-aurora);
+    }
+
+    .text-muted {
+      color: var(--text-nebula);
+    }
+
+    .text-success {
+      color: var(--accent-pulsar);
+    }
+
+    .text-danger {
+      color: var(--accent-red);
+    }
+
+    .text-warning {
+      color: var(--accent-flare);
+    }
+
+    .label {
+      font-size: 12px;
+      color: var(--text-nebula);
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .value {
+      font-size: 14px;
+      color: var(--text-star);
+      font-weight: 500;
+    }
+
+    .empty-state {
+      padding: 44px;
+      text-align: center;
+      color: var(--text-nebula);
+    }
+
+    .empty-state i {
+      font-size: 36px;
+      display: block;
+      margin-bottom: 12px;
+      opacity: .4;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .chip {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      background: var(--bg-elevated);
+      color: var(--text-moon);
+      border: 1px solid var(--border-dim);
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .quest-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 13px;
+      padding: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: var(--trans);
+    }
+
+    .quest-card:hover {
+      border-color: var(--border-glow);
+      transform: translateX(4px);
+    }
+
+    .proposal-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 12px;
+      transition: var(--trans);
+    }
+
+    .proposal-card:hover {
+      border-color: var(--border-glow);
+    }
+
+    /* ══════════════════════════════════════
+   ONLINE INDICATOR
+══════════════════════════════════════ */
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-pulsar);
+      display: inline-block;
+      margin-right: 6px;
+      box-shadow: 0 0 6px var(--accent-pulsar);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .4;
+      }
+    }
+
+    /* ══════════════════════════════════════
+   LEADERBOARD ROW
+══════════════════════════════════════ */
+    .lb-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    .lb-row:last-child {
+      border-bottom: none;
+    }
+
+    .lb-rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--bg-hover);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-nebula);
+      flex-shrink: 0;
+    }
+
+    .lb-rank.gold {
+      background: rgba(251, 191, 36, .2);
+      color: var(--accent-flare);
+    }
+
+    .lb-rank.silver {
+      background: rgba(167, 167, 180, .2);
+      color: #c0c0d0;
+    }
+
+    .lb-rank.bronze {
+      background: rgba(205, 127, 50, .2);
+      color: #cd7f32;
+    }
+
+    /* Chart canvas sizing */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="toast-zone"></div>
+  <canvas id="galaxy-canvas"></canvas>
+  <div id="aurora-bg">
+    <div class="aurora-wave"
+      style="width:700px;height:700px;background:radial-gradient(circle,rgba(124,158,255,.35),rgba(167,139,250,.2),transparent 70%);top:-200px;left:-100px;--dur:14s;--tx:60px;--ty:40px;">
+    </div>
+    <div class="aurora-wave"
+      style="width:500px;height:500px;background:radial-gradient(circle,rgba(34,211,238,.25),rgba(52,211,153,.15),transparent 70%);bottom:-100px;right:-50px;--dur:10s;--tx:-50px;--ty:-30px;">
+    </div>
+    <div class="aurora-wave"
+      style="width:400px;height:400px;background:radial-gradient(circle,rgba(251,191,36,.2),rgba(244,114,182,.15),transparent 70%);top:40%;left:40%;--dur:16s;--tx:30px;--ty:-40px;">
+    </div>
+  </div>
+
+  <!-- ════════════ AUTH ════════════ -->
+  <div id="auth-screen">
+    <div class="auth-panel">
+      <div class="auth-visual">
+        <div class="auth-visual-rings">
+          <div class="ring" style="width:420px;height:420px;--rd:8s;"></div>
+          <div class="ring" style="width:280px;height:280px;--rd:6s;border-color:rgba(167,139,250,.12);"></div>
+          <div class="ring" style="width:160px;height:160px;--rd:4s;border-color:rgba(52,211,153,.1);"></div>
+        </div>
+        <div class="auth-logo">
+          <div class="logo-orb"><i class="bi bi-stars" style="color:white;font-size:18px"></i></div>
+          <div>
+            <div class="brand-name">CELESTIAL</div>
+            <div class="auth-tagline">Enterprise Freelance Platform</div>
+          </div>
+        </div>
+        <div>
+          <div class="auth-orbit-text">Where talent meets <span>the cosmos</span></div>
+          <div class="auth-orbit-sub">Manage projects, teams, and freelancers in a unified orbital platform with
+            AI-powered intelligence and real-time analytics.</div>
+          <div style="display:flex;gap:14px;margin-top:24px">
+            <div style="text-align:center">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--accent-aurora)">2.1K
+              </div>
+              <div style="font-size:11px;color:var(--text-nebula)">Freelancers</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--accent-nova)">86
+              </div>
+              <div style="font-size:11px;color:var(--text-nebula)">Projects</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--accent-pulsar)">99.9%
+              </div>
+              <div style="font-size:11px;color:var(--text-nebula)">Uptime</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:rgba(99,118,160,.5)">© 2026 Celestial Systems</div>
+      </div>
+
+      <div class="auth-form-side">
+        <h2>Welcome Back</h2>
+        <p>Sign in to your account or create a new one</p>
+        <div class="tabs">
+          <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+          <button class="tab-btn" id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+        </div>
+        <div id="login-form">
+          <div class="form-field">
+            <label>Username</label>
+            <input class="form-input" id="login-user" placeholder="e.g. admin, client" value="admin">
+          </div>
+          <div class="form-field">
+            <label>Password</label>
+            <input class="form-input" type="password" id="login-pass" placeholder="••••••••" value="admin123">
+          </div>
+          <div class="demo-hint">
+            Roles: <code>admin</code> · <code>proposal_manager</code> · <code>general_manager</code> ·
+            <code>freelancer</code> · <code>team_leader</code> · <code>accountant</code> · <code>client</code><br>
+            Pass: <code>admin123</code> or <code>pass123</code>
+          </div>
+          <button class="btn-primary" onclick="doLogin()">Authenticate &nbsp;<i class="bi bi-arrow-right"></i></button>
+        </div>
+        <div id="signup-form" class="hidden">
+          <div class="form-field">
+            <label>Sign up as</label>
+            <select class="form-select" id="signup-type" onchange="toggleSignupFields()">
+              <option value="client">Client</option>
+              <option value="freelancer">Freelancer</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Full Name</label><input class="form-input" id="signup-name"
+              placeholder="Your full name"></div>
+          <div class="form-field"><label>Email</label><input class="form-input" type="email" id="signup-email"
+              placeholder="you@example.com"></div>
+          <div class="form-field"><label>Username</label><input class="form-input" id="signup-user"
+              placeholder="Choose a username"></div>
+          <div class="form-field"><label>Password</label><input class="form-input" type="password" id="signup-pass"
+              placeholder="Minimum 8 characters"></div>
+          <div id="freelancer-fields" class="hidden">
+            <div class="form-field">
+              <label>Skills</label>
+              <div class="skills-grid">
+                <div class="skill-chip" onclick="toggleSkill(this)">Frontend Dev</div>
+                <div class="skill-chip" onclick="toggleSkill(this)">Backend Dev</div>
+                <div class="skill-chip" onclick="toggleSkill(this)">Database</div>
+                <div class="skill-chip" onclick="toggleSkill(this)">UI/UX Design</div>
+                <div class="skill-chip" onclick="toggleSkill(this)">DevOps</div>
+                <div class="skill-chip" onclick="toggleSkill(this)">AI/ML</div>
+              </div>
+            </div>
+            <div class="form-field"><label>Hourly Rate (USD)</label><input class="form-input" type="number"
+                id="signup-rate" placeholder="e.g. 45"></div>
+          </div>
+          <div id="client-fields">
+            <div class="form-field"><label>Company Name</label><input class="form-input" id="signup-company"
+                placeholder="Your company"></div>
+            <div class="form-field"><label>Industry</label><input class="form-input" id="signup-industry"
+                placeholder="e.g. Technology, Finance"></div>
+          </div>
+          <button class="btn-primary" onclick="doSignup()">Create Account &nbsp;<i
+              class="bi bi-arrow-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ APP SHELL ════════════ -->
+  <div id="app-shell">
+    <div class="api-banner">
+      <span><span class="online-dot"></span>Celestial Platform Engine v4.2</span>
+      <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+        <span>API Mode:</span>
+        <select id="api-mode" onchange="toggleApiMode()">
+          <option value="mock">Simulated (Offline Preview)</option>
+          <option value="live">Live Backend</option>
+        </select>
+      </div>
+    </div>
+
+    <header class="top-bar">
+      <button class="hamburger" onclick="toggleSidebar()"><i class="bi bi-layout-sidebar"></i></button>
+      <div class="topbar-logo">
+        <div class="logo-orb"><i class="bi bi-stars" style="color:white;font-size:14px"></i></div>
+        <span class="topbar-brand">CELESTIAL</span>
+      </div>
+      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div class="topbar-actions">
+        <div class="icon-btn" onclick="toggleNotifPanel(event)" title="Notifications" style="position:relative">
+          <i class="bi bi-bell"></i>
+          <div class="notif-dot" id="notif-dot"></div>
+          <div class="notif-panel" id="notif-panel" onclick="event.stopPropagation()">
+            <div class="notif-head">
+              <span style="font-family:'Syne',sans-serif;font-size:13px;font-weight:600">Notifications</span>
+              <button class="btn btn-sm btn-ghost" onclick="clearNotifs()">Clear all</button>
+            </div>
+            <div id="notif-list"></div>
+          </div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()"><i class="bi bi-moon-stars" id="theme-icon"></i><span
+            id="theme-label">Dark</span></button>
+        <div class="user-chip">
+          <div class="avatar" id="user-avatar">?</div>
+          <div>
+            <div class="user-name" id="user-name-display">User</div>
+            <div class="user-role" id="user-role-display">Role</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav" id="sidebar-nav"></nav>
+        <div class="sidebar-footer">
+          <button class="logout-btn" onclick="doLogout()"><i class="bi bi-box-arrow-left"></i><span>Sign
+              Out</span></button>
+        </div>
+      </aside>
+      <main class="main-content" id="main-content"></main>
+    </div>
+  </div>
+
+  <!-- ════════════ MODAL ════════════ -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" id="modal-box" onclick="event.stopPropagation()">
+      <div id="modal-inner"></div>
+    </div>
+  </div>
+
+  <script>
+
+    // ════════════════════════════════════════
+    // GALAXY CANVAS ENGINE
+    // ════════════════════════════════════════
+    (function initGalaxy() {
+      const canvas = document.getElementById('galaxy-canvas');
+      const ctx = canvas.getContext('2d');
+      let W, H, stars = [], mouse = { x: -9999, y: -9999 };
+      const COUNT = 320;
+
+      function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+
+      function makeStars() {
+        stars = [];
+        for (let i = 0; i < COUNT; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = Math.pow(Math.random(), 0.5) * Math.min(W, H) * 0.52;
+          stars.push({
+            baseX: W / 2 + Math.cos(angle) * radius,
+            baseY: H / 2 + Math.sin(angle) * radius,
+            x: 0, y: 0,
+            size: Math.random() * 2.2 + 0.3,
+            speed: Math.random() * 0.3 + 0.05,
+            angle: angle,
+            orbitR: radius,
+            twinkle: Math.random() * Math.PI * 2,
+            twinkleSpeed: Math.random() * 0.03 + 0.01,
+            hue: Math.random() * 60 + 200,
+            opacity: Math.random() * 0.5 + 0.3,
+            vx: 0, vy: 0
+          });
+        }
+      }
+
+      let frame = 0;
+      function animate() {
+        ctx.clearRect(0, 0, W, H);
+        frame++;
+        const isLight = document.documentElement.classList.contains('light');
+
+        stars.forEach((s, i) => {
+          s.angle += s.speed * 0.002;
+          s.twinkle += s.twinkleSpeed;
+          s.baseX = W / 2 + Math.cos(s.angle) * s.orbitR;
+          s.baseY = H / 2 + Math.sin(s.angle) * s.orbitR;
+
+          // mouse repulsion
+          const dx = s.baseX - mouse.x, dy = s.baseY - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            const force = (120 - dist) / 120 * 2;
+            s.vx += (dx / dist) * force;
+            s.vy += (dy / dist) * force;
+          }
+          s.vx *= 0.92;
+          s.vy *= 0.92;
+          s.x = s.baseX + s.vx;
+          s.y = s.baseY + s.vy;
+
+          const twinkleAlpha = s.opacity * (0.6 + 0.4 * Math.sin(s.twinkle));
+          const r = s.size * (0.85 + 0.15 * Math.sin(s.twinkle * 1.3));
+
+          if (isLight) {
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${s.hue},70%,40%,${twinkleAlpha * 0.6})`;
+            ctx.fill();
+          } else {
+            // glow
+            if (r > 1.4) {
+              const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 4);
+              g.addColorStop(0, `hsla(${s.hue},100%,80%,${twinkleAlpha * 0.3})`);
+              g.addColorStop(1, `hsla(${s.hue},100%,80%,0)`);
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, r * 4, 0, Math.PI * 2);
+              ctx.fillStyle = g;
+              ctx.fill();
+            }
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${s.hue},90%,90%,${twinkleAlpha})`;
+            ctx.fill();
+          }
+        });
+
+        // galaxy core glow (dark mode only)
+        if (!isLight) {
+          const cg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 180);
+          cg.addColorStop(0, 'rgba(124,158,255,0.06)');
+          cg.addColorStop(0.5, 'rgba(167,139,250,0.03)');
+          cg.addColorStop(1, 'transparent');
+          ctx.fillStyle = cg;
+          ctx.fillRect(0, 0, W, H);
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener('resize', () => { resize(); makeStars(); });
+      window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+      resize();
+      makeStars();
+      animate();
+    })();
+
+    // ════════════════════════════════════════
+    // STATE
+    // ════════════════════════════════════════
+    const App = {
+      user: null,
+      apiMode: 'mock',
+      theme: 'dark',
+      sidebarCollapsed: false,
+      activeView: 'dashboard',
+      charts: {},
+      notifications: [
+        { id: 1, title: 'New Proposal Accepted', body: 'Client Omega accepted the Cloud Migration proposal.', time: '2m ago' },
+        { id: 2, title: 'Phase 2 Submitted', body: 'Team Apollo submitted Phase 2 for review.', time: '15m ago' },
+        { id: 3, title: 'Payment Processed', body: 'Salary batch for May 2026 was processed.', time: '1h ago' },
+        { id: 4, title: 'New Freelancer Joined', body: 'Maya Reeves joined the platform. Rating: ★ 4.9', time: '3h ago' },
+      ]
+    };
+
+    // ════════════════════════════════════════
+    // CHANGE 1: Variables declared after App object
+    // ════════════════════════════════════════
+    let socket = null;
+    let currentView = 'dashboard';
+
+    const DB = {
+      users: [
+        { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'System Admin', email: 'admin@celestial.io' },
+        { id: 2, username: 'proposal_manager', password: 'pass123', role: 'proposal_manager', name: 'Sara Vance', email: 'sara@celestial.io' },
+        { id: 3, username: 'general_manager', password: 'pass123', role: 'general_manager', name: 'Marcus Chen', email: 'marcus@celestial.io' },
+        { id: 4, username: 'freelancer', password: 'pass123', role: 'freelancer', name: 'Alex Mercer', email: 'alex@celestial.io' },
+        { id: 5, username: 'team_leader', password: 'pass123', role: 'team_leader', name: 'Elena Rostova', email: 'elena@celestial.io' },
+        { id: 6, username: 'accountant', password: 'pass123', role: 'accountant', name: 'Finley Vance', email: 'finley@celestial.io' },
+        { id: 7, username: 'client', password: 'pass123', role: 'client', name: 'Anna K.', email: 'anna@clientcorp.com' }
+      ]
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderNotifications();
+      document.body.addEventListener('click', () => {
+        document.getElementById('notif-panel').classList.remove('open');
+      });
+    });
+
+    // ════════════════════════════════════════
+    // AUTH
+    // ════════════════════════════════════════
+    function switchTab(mode) {
+      document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+      document.getElementById('tab-signup').classList.toggle('active', mode === 'signup');
+      document.getElementById('login-form').classList.toggle('hidden', mode !== 'login');
+      document.getElementById('signup-form').classList.toggle('hidden', mode !== 'signup');
+    }
+    function toggleSignupFields() {
+      const t = document.getElementById('signup-type').value;
+      document.getElementById('freelancer-fields').classList.toggle('hidden', t !== 'freelancer');
+      document.getElementById('client-fields').classList.toggle('hidden', t !== 'client');
+    }
+    function toggleSkill(chip) { chip.classList.toggle('selected'); }
+
+    async function doLogin() {
+      const u = document.getElementById('login-user').value.trim();
+      const p = document.getElementById('login-pass').value;
+
+      if (App.apiMode === 'live') {
+        try {
+          const res = await apiFetch('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ username: u, password: p })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const userObj = { id: data.data.id, username: u, role: data.data.role, name: data.data.full_name, email: data.data.email };
+            initSession(userObj);
+            showToast(`Welcome back, ${userObj.name}!`, 'success');
+          } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.error || 'Invalid credentials.', 'error');
+          }
+        } catch (e) {
+          showToast('Cannot reach backend — switching to Simulated mode.', 'error');
+          App.apiMode = 'mock';
+          document.getElementById('api-mode').value = 'mock';
+          _mockLogin(u, p);
+        }
+      } else {
+        _mockLogin(u, p);
+      }
+    }
+
+    function _mockLogin(u, p) {
+      const target = DB.users.find(x => x.username === u);
+      if (target && (target.password === p || p === 'admin123' || p === 'pass123')) {
+        initSession(target);
+        showToast(`Welcome back, ${target.name}! (Simulated)`, 'success');
+      } else {
+        showToast('Invalid credentials. Try the demo roles shown.', 'error');
+      }
+    }
+
+    async function doSignup() {
+      const username = document.getElementById('signup-user').value.trim();
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-pass').value;
+      const role = document.getElementById('signup-type').value;
+      if (!username || !name || !email) { showToast('Please fill in all required fields.', 'error'); return; }
+
+      if (App.apiMode === 'live') {
+        try {
+          const payload = { username, full_name: name, email, password, role };
+          if (role === 'freelancer') {
+            const skills = [...document.querySelectorAll('.skill-chip.selected')].map(c => c.textContent).join(',');
+            payload.skills = skills;
+            payload.hourly_rate = document.getElementById('signup-rate')?.value || 0;
+          } else {
+            payload.company = document.getElementById('signup-company')?.value || '';
+          }
+          const res = await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
+          if (res.ok) {
+            const data = await res.json();
+            const userObj = { id: data.data.id, username, role, name, email };
+            initSession(userObj);
+            showToast('Account created successfully!', 'success');
+          } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.error || 'Registration failed.', 'error');
+          }
+        } catch (e) {
+          showToast('Backend unreachable. Using offline mode.', 'error');
+        }
+      } else {
+        const nu = { id: Date.now(), username, role, name, email: email || 'custom@celestial.io', password };
+        DB.users.push(nu);
+        initSession(nu);
+        showToast('Account created successfully! (Simulated)', 'success');
+      }
+    }
+
+    // ════════════════════════════════════════
+    // API HELPER — all fetch calls go through here
+    // ════════════════════════════════════════
+    function apiFetch(url, opts = {}) {
+      return fetch(url, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        ...opts
+      });
+    }
+
+    async function apiGet(path) {
+      const res = await apiFetch(path);
+      if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
+      const j = await res.json();
+      return j.data !== undefined ? j.data : j;
+    }
+
+    async function apiPost(path, body) {
+      const res = await apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || `API ${path} → ${res.status}`);
+      return j.data !== undefined ? j.data : j;
+    }
+
+    async function apiPut(path, body) {
+      const res = await apiFetch(path, { method: 'PUT', body: JSON.stringify(body) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || `API ${path} → ${res.status}`);
+      return j.data !== undefined ? j.data : j;
+    }
+
+    // ════════════════════════════════════════
+    // CHANGE 2: Replaced initSession function
+    // ════════════════════════════════════════
+    async function initSession(userObj) {
+      App.user = userObj;
+
+      // Try to load real notifications from backend if in live mode
+      if (App.apiMode === 'live') {
+        try {
+          const notifs = await apiGet('/api/shared/notifications');
+          if (Array.isArray(notifs)) {
+            App.notifications = notifs.map(n => ({
+              id: n.id, title: n.title, body: n.message,
+              time: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+          }
+        } catch (e) { /* keep default mock notifs */ }
+      }
+
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app-shell').classList.add('visible');
+
+      document.getElementById('user-avatar').innerText = userObj.name.charAt(0).toUpperCase();
+      document.getElementById('user-name-display').innerText = userObj.name;
+      document.getElementById('user-role-display').innerText = userObj.role.toUpperCase().replace(/_/g, ' ');
+
+      renderNotifications();
+      setupSidebarNavigation(userObj.role);
+      navigateTo('dashboard');
+
+      setTimeout(initRealtime, 800);
+    }
+
+    async function doLogout() {
+      if (App.apiMode === 'live') {
+        try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch (e) { }
+      }
+      App.user = null;
+      if (socket) { socket.disconnect(); socket = null; }
+      destroyAllCharts();
+      document.getElementById('app-shell').classList.remove('visible');
+      document.getElementById('auth-screen').style.display = 'flex';
+      showToast('Session ended cleanly.', 'info');
+    }
+
+    // ════════════════════════════════════════
+    // CHART MANAGEMENT
+    // ════════════════════════════════════════
+    function destroyAllCharts() {
+      Object.values(App.charts).forEach(c => { try { c.destroy(); } catch (e) { } });
+      App.charts = {};
+    }
+
+    function mkChart(id, type, data, options = {}) {
+      if (App.charts[id]) { try { App.charts[id].destroy(); } catch (e) { } }
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+      App.charts[id] = new Chart(ctx, {
+        type, data, options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }, tooltip: {
+              backgroundColor: '#1a2235',
+              borderColor: 'rgba(124,158,255,.25)',
+              borderWidth: 1,
+              titleColor: '#eef2ff',
+              bodyColor: '#a8b4d4',
+              padding: 10,
+              cornerRadius: 8
+            }
+          },
+          ...options
+        }
+      });
+    }
+
+    // ════════════════════════════════════════
+    // SHELL INTERACTIONS
+    // ════════════════════════════════════════
+    function toggleSidebar() {
+      App.sidebarCollapsed = !App.sidebarCollapsed;
+      document.getElementById('sidebar').classList.toggle('collapsed', App.sidebarCollapsed);
+    }
+
+    function toggleTheme() {
+      App.theme = App.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.className = App.theme === 'light' ? 'light' : '';
+      document.getElementById('theme-label').innerText = App.theme === 'light' ? 'Light' : 'Dark';
+      document.getElementById('theme-icon').className = App.theme === 'light' ? 'bi bi-sun' : 'bi bi-moon-stars';
+    }
+
+    function toggleApiMode() {
+      App.apiMode = document.getElementById('api-mode').value;
+      showToast(`Switched to: ${App.apiMode === 'live' ? '🟢 Live Backend' : '🔵 Simulated'} mode`, 'info');
+      if (App.user) navigateTo(currentView);
+    }
+
+    function toggleNotifPanel(e) {
+      e.stopPropagation();
+      document.getElementById('notif-panel').classList.toggle('open');
+    }
+
+    function renderNotifications() {
+      const container = document.getElementById('notif-list');
+      const dot = document.getElementById('notif-dot');
+      if (!container) return;
+      if (App.notifications.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="padding:20px;font-size:12px">No notifications</div>';
+        if (dot) dot.style.display = 'none';
+        return;
+      }
+      if (dot) dot.style.display = 'block';
+      container.innerHTML = App.notifications.map(n => `
+    <div class="notif-item">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div class="notif-dot-item" style="margin-top:4px"></div>
+        <div style="flex:1">
+          <div class="notif-title-text">${n.title}</div>
+          <div class="notif-body-text">${n.body}</div>
+          <div style="font-size:10px;color:var(--text-nebula);margin-top:3px">${n.time}</div>
+        </div>
+      </div>
+    </div>`).join('');
+    }
+
+    function clearNotifs() { App.notifications = []; renderNotifications(); }
+
+    // ════════════════════════════════════════
+    // NAVIGATION
+    // ════════════════════════════════════════
+    function roleLabel(role) { return role.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+
+    const ROLE_NAV = {
+      admin: [
+        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', view: 'dashboard' },
+        { label: 'User Engine', icon: 'bi-people-fill', view: 'users', badge: '2.1K' },
+        { label: 'System Specs', icon: 'bi-sliders', view: 'system' },
+        { label: 'Audit Logs', icon: 'bi-shield-check', view: 'audit' },
+        { label: 'Analytics', icon: 'bi-graph-up-arrow', view: 'analytics' },
+        { label: 'Settings', icon: 'bi-gear-fill', view: 'settings' },
+      ],
+      proposal_manager: [
+        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', view: 'dashboard' },
+        { label: 'Proposals', icon: 'bi-file-earmark-text-fill', view: 'proposals', badge: '18' },
+        { label: 'Projects', icon: 'bi-rocket-takeoff-fill', view: 'projects' },
+        { label: 'Clients', icon: 'bi-building', view: 'clients' },
+        { label: 'Analytics', icon: 'bi-graph-up-arrow', view: 'analytics' },
+      ],
+      general_manager: [
+        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', view: 'dashboard' },
+        { label: 'Proposals', icon: 'bi-file-earmark-text-fill', view: 'proposals' },
+        { label: 'Projects', icon: 'bi-rocket-takeoff-fill', view: 'projects' },
+        { label: 'Teams', icon: 'bi-diagram-3-fill', view: 'teams' },
+        { label: 'Analytics', icon: 'bi-graph-up-arrow', view: 'analytics' },
+        { label: 'Risk Monitor', icon: 'bi-shield-exclamation', view: 'risk', badge: '9' },
+      ],
+      freelancer: [
+        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', view: 'dashboard' },
+        { label: 'Tasks Matrix', icon: 'bi-clipboard-check-fill', view: 'tasks', badge: '23' },
+        { label: 'Quest Hub', icon: 'bi-award-fill', view: 'quests' },
+        { label: 'My Projects', icon: 'bi-kanban-fill', view: 'projects' },
+        { label: 'Earnings', icon: 'bi-cash-coin', view: 'earnings' },
+        { label: 'Profile', icon: 'bi-person-fill', view: 'profile' },
+      ],
+      team_leader: [
+        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', view: 'dashboard' },
+        { label: 'Sprint Board', icon: 'bi-kanban-fill', view: 'sprint' },
+        { label: 'My Team', icon: 'bi-people-fill', view: 'teams' },
+        { label: 'Tasks', icon: 'bi-clipboard-check-fill', view: 'tasks' },
+        { label: 'Analytics', icon: 'bi-graph-up-arrow', view: 'analytics' },
+      ],
+      accountant: [
+        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', view: 'dashboard' },
+        { label: 'Invoices', icon: 'bi-receipt-cutoff', view: 'invoices', badge: '6' },
+        { label: 'Financials', icon: 'bi-cash-stack', view: 'financials' },
+        { label: 'Salary Engine', icon: 'bi-bank2', view: 'salary' },
+        { label: 'Reports', icon: 'bi-file-earmark-bar-graph', view: 'reports' },
+      ],
+      client: [
+        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', view: 'dashboard' },
+        { label: 'My Projects', icon: 'bi-kanban-fill', view: 'projects' },
+        { label: 'Messages', icon: 'bi-chat-dots-fill', view: 'messages', badge: '14' },
+        { label: 'Invoices', icon: 'bi-receipt-cutoff', view: 'invoices' },
+        { label: 'Team', icon: 'bi-people-fill', view: 'teams' },
+      ],
+    };
+
+    function setupSidebarNavigation(role) {
+      const nav = document.getElementById('sidebar-nav');
+      const items = ROLE_NAV[role] || ROLE_NAV.client;
+      nav.innerHTML = `<div class="nav-section-label">Navigation</div>` +
+        items.map(item => `
+      <div class="nav-item ${item.view === 'dashboard' ? 'active' : ''}" id="nav-${item.view}" onclick="navigateTo('${item.view}')">
+        <i class="bi ${item.icon}"></i>
+        <span>${item.label}</span>
+        ${item.badge ? `<div class="nav-badge">${item.badge}</div>` : ''}
+      </div>`).join('');
+    }
+
+    function setActiveNav(view) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const el = document.getElementById('nav-' + view);
+      if (el) el.classList.add('active');
+    }
+
+    // ════════════════════════════════════════
+    // CHANGE 3: Replaced navigateTo function
+    // ════════════════════════════════════════
+    function navigateTo(view) {
+      currentView = view;                    // Critical fix
+      App.activeView = view;
+      setActiveNav(view);
+      destroyAllCharts();
+
+      document.getElementById('page-title').innerText =
+        view === 'dashboard' ? `${roleLabel(App.user?.role || 'User')} Dashboard` :
+          view.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+      const views = {
+        dashboard: () => loadDashboard(App.user?.role),
+        proposals: loadProposalsView,
+        projects: loadProjectsView,
+        tasks: loadTasksView,
+        messages: loadMessagesView,
+        sprint: loadSprintView,
+        financials: loadFinancialsView,
+        analytics: loadAnalyticsView,
+        users: loadUsersView,
+        system: loadSystemView,
+        audit: loadAuditView,
+        settings: loadSettingsView,
+        clients: loadClientsView,
+        quests: loadQuestsView,
+        earnings: loadEarningsView,
+        profile: loadProfileView,
+        teams: loadTeamsView,
+        invoices: loadInvoicesView,
+        salary: loadSalaryView,
+        reports: loadReportsView,
+        risk: loadRiskView,
+      };
+      (views[view] || (() => loadDashboard(App.user?.role)))();
+    }
+
+    // ════════════════════════════════════════
+    // RADIAL SVG HELPER
+    // ════════════════════════════════════════
+    function radialSVG(pct, color, label = '') {
+      const r = 44, c = 2 * Math.PI * r, off = c - (pct / 100) * c;
+      return `<svg viewBox="0 0 110 110" width="110" height="110">
+    <circle cx="55" cy="55" r="${r}" stroke="rgba(255,255,255,0.06)" stroke-width="10" fill="none"/>
+    <circle cx="55" cy="55" r="${r}" stroke="${color}" stroke-width="10" fill="none"
+      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
+      stroke-linecap="round" transform="rotate(-90 55 55)"/>
+    <text x="55" y="52" text-anchor="middle" font-size="17" fill="currentColor" font-family="Syne,sans-serif" font-weight="700">${pct}%</text>
+    <text x="55" y="68" text-anchor="middle" font-size="9" fill="rgba(168,180,212,0.8)" font-family="DM Sans,sans-serif">${label}</text>
+  </svg>`;
+    }
+
+    // ════════════════════════════════════════
+    // DASHBOARD
+    // ════════════════════════════════════════
+    const STATS = {
+      admin: [
+        ['Total Users', '2,148', 'bi-people-fill', 'violet', '+12.4%', false, [22, 28, 25, 31, 38, 44, 52, 61]],
+        ['Active Projects', '86', 'bi-rocket-takeoff-fill', 'blue', '+8.1%', false, [14, 18, 16, 22, 25, 21, 28, 34]],
+        ['System Uptime', '99.98%', 'bi-shield-check', 'green', 'Stable', false],
+        ['Open Alerts', '4', 'bi-exclamation-triangle-fill', 'amber', 'Needs review', true],
+      ],
+      proposal_manager: [
+        ['Proposals', '128', 'bi-file-earmark-text-fill', 'blue', '+9.2%', false, [8, 12, 10, 16, 18, 14, 22, 26]],
+        ['Win Rate', '64%', 'bi-trophy-fill', 'green', '+3.4%', false],
+        ['Pending Review', '18', 'bi-hourglass-split', 'amber', 'Due today', true],
+        ['Avg Value', '$18.4K', 'bi-currency-dollar', 'violet', '+5.7%', false],
+      ],
+      general_manager: [
+        ['Departments', '7', 'bi-diagram-3-fill', 'cyan', 'Aligned', false],
+        ['Delivery Rate', '91%', 'bi-bullseye', 'green', '+2.1%', false],
+        ['Risk Items', '9', 'bi-shield-exclamation', 'red', 'Monitor', true],
+        ['Revenue', '$412K', 'bi-graph-up-arrow', 'violet', '+11.8%', false, [30, 34, 32, 40, 45, 43, 50, 58]],
+      ],
+      freelancer: [
+        ['Tasks', '23', 'bi-clipboard-check-fill', 'blue', '+4', false],
+        ['Hours Logged', '148h', 'bi-clock-history', 'violet', '+18h', false, [18, 24, 20, 28, 30, 26, 34, 36]],
+        ['Skill Match', '92%', 'bi-stars', 'green', 'High', false],
+        ['Earnings', '$3.8K', 'bi-cash-coin', 'amber', '+14%', false],
+      ],
+      team_leader: [
+        ['Team Members', '12', 'bi-people-fill', 'blue', 'Stable', false],
+        ['Sprint Done', '87%', 'bi-lightning-charge-fill', 'green', '+6%', false],
+        ['Blocked Tasks', '3', 'bi-exclamation-circle-fill', 'red', 'Urgent', true],
+        ['Velocity', '42 pts', 'bi-speedometer2', 'violet', '+8 pts', false],
+      ],
+      accountant: [
+        ['Invoices', '74', 'bi-receipt-cutoff', 'blue', '+9', false],
+        ['Paid', '61', 'bi-patch-check-fill', 'green', '82.4%', false],
+        ['Overdue', '6', 'bi-calendar-x-fill', 'red', 'Action needed', true],
+        ['Cash Flow', '$96K', 'bi-bank2', 'violet', '+13.6%', false, [44, 46, 49, 52, 55, 60, 66, 71]],
+      ],
+      client: [
+        ['Projects', '8', 'bi-kanban-fill', 'blue', 'In progress', false],
+        ['Delivered', '5', 'bi-check2-circle', 'green', '62.5%', false],
+        ['Budget Used', '74%', 'bi-pie-chart-fill', 'amber', 'On track', false],
+        ['Messages', '14', 'bi-chat-dots-fill', 'violet', 'New', true],
+      ],
+    };
+
+    function spkPath(vals, w = 160, h = 48) {
+      const min = Math.min(...vals), max = Math.max(...vals), range = max - min || 1;
+      const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - 6 - ((v - min) / range) * (h - 12)}`).join(' ');
+      return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">
+    <polyline fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${pts}" opacity="0.7"/>
+  </svg>`;
+    }
+
+    function loadDashboard(role) {
+      const main = document.getElementById('main-content');
+      const stats = STATS[role] || STATS.client;
+
+      const statsHtml = stats.map(s => `
+    <div class="stat-card ${s[3]}">
+      <div class="stat-icon ${s[3]}"><i class="bi ${s[2]}"></i></div>
+      <div class="stat-label">${s[0]}</div>
+      <div class="stat-value">${s[1]}</div>
+      <div class="stat-delta ${s[5] ? 'neg' : ''}">${s[5] ? '<i class="bi bi-exclamation-triangle-fill"></i>' : '<i class="bi bi-arrow-up-right"></i>'} ${s[4]}</div>
+      ${s[7] ? `<div class="stat-sparkline" style="color:var(--accent-${s[3] === 'blue' ? 'aurora' : s[3] === 'violet' ? 'nova' : s[3] === 'green' ? 'pulsar' : s[3] === 'amber' ? 'flare' : 'red'})">${spkPath(s[7])}</div>` : ''}
+    </div>`).join('');
+
+      main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">${roleLabel(role)} Overview</h1>
+        <p class="page-sub">Real-time metrics and intelligence for ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      </div>
+      <button class="btn btn-accent" onclick="showToast('Report generated!','success')"><i class="bi bi-download"></i> Export Report</button>
+    </div>
+    <div class="stats-grid">${statsHtml}</div>
+    <div id="dash-charts"></div>
+    <div id="dash-lower" class="grid-2" style="margin-top:16px"></div>`;
+
+      setTimeout(() => renderDashCharts(role), 50);
+    }
+
+    function renderDashCharts(role) {
+      const dc = document.getElementById('dash-charts');
+      const dl = document.getElementById('dash-lower');
+      if (!dc || !dl) return;
+
+      const chartConfigs = {
+        admin: {
+          main: `<div class="grid-2">
+        <div class="card"><div class="card-header"><span class="card-title">User Growth (2026)</span><span class="badge badge-green">+12.4%</span></div>
+          <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="c-main1" role="img" aria-label="User growth chart 2026"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Role Distribution</span></div>
+          <div class="card-body" style="display:flex;gap:20px;align-items:center">
+            <div class="chart-wrap" style="height:200px;width:200px;flex-shrink:0"><canvas id="c-main2" role="img" aria-label="Role distribution donut chart"></canvas></div>
+            <div id="legend-main2" style="font-size:12px;color:var(--text-moon);line-height:2"></div>
+          </div></div></div>
+      </div>`,
+          lower: `<div class="card"><div class="card-header"><span class="card-title">System Load</span><span class="badge badge-blue">Live</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:160px"><canvas id="c-low1" role="img" aria-label="System load line chart"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Platform Health</span></div>
+          <div class="card-body">
+            ${[['Uptime', '99.98%', 99, 'green'], ['API Response', '28ms', 92, 'blue'], ['DB Latency', '14ms', 96, 'violet'], ['Error Rate', '0.02%', 99, 'pulsar']].map(r => `
+            <div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;color:var(--text-moon)">${r[0]}</span><span style="font-size:12px;font-weight:600;color:var(--text-star)">${r[1]}</span></div>
+            <div class="progress-bar"><div class="progress-fill ${r[3] === 'pulsar' ? 'green' : r[3] === 'blue' ? 'blue' : r[3] === 'violet' ? 'blue' : 'green'}" style="width:${r[2]}%"></div></div></div>`).join('')}
+          </div></div>`,
+        },
+        proposal_manager: {
+          main: `<div class="grid-2">
+        <div class="card"><div class="card-header"><span class="card-title">Win Rate Trend</span><span class="badge badge-green">+3.4%</span></div>
+          <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="c-main1" role="img" aria-label="Win rate trend line chart"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Proposal Status</span></div>
+          <div class="card-body" style="display:flex;gap:20px;align-items:center">
+            <div class="chart-wrap" style="height:200px;width:200px;flex-shrink:0"><canvas id="c-main2" role="img" aria-label="Proposal status donut"></canvas></div>
+            <div id="legend-main2" style="font-size:12px;color:var(--text-moon);line-height:2.2"></div>
+          </div></div></div>
+      </div>`,
+          lower: `<div class="card"><div class="card-header"><span class="card-title">Recent Proposals</span><button class="btn btn-sm btn-accent" onclick="navigateTo('proposals')">View All</button></div>
+        <div class="card-body" style="padding:0">
+          <table class="data-table"><thead><tr><th>Project</th><th>Client</th><th>Value</th><th>Status</th></tr></thead>
+          <tbody>
+            ${[['Cloud Migration', 'Omega Corp', '$48K', 'badge-green', 'Accepted'], ['AI Dashboard', 'NovaTech', '$22K', 'badge-amber', 'Pending'], ['ERP Overhaul', 'Stratos Ltd', '$85K', 'badge-blue', 'In Review'], ['API Gateway', 'Finova', '$16K', 'badge-red', 'Declined']].map(r => `
+            <tr><td><strong>${r[0]}</strong></td><td>${r[1]}</td><td>${r[2]}</td><td><span class="badge ${r[3]}">${r[4]}</span></td></tr>`).join('')}
+          </tbody></table></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Client Satisfaction</span></div>
+          <div class="card-body">
+            ${[['NovaTech', 96], [' Omega Corp', 88], ['Stratos Ltd', 92], ['Finova', 74]].map(c => `
+            <div class="skill-row"><span class="skill-name">${c[0]}</span><div class="skill-track"><div class="skill-fill" style="width:${c[1]}%"></div></div><span class="skill-score">${c[1]}%</span></div>`).join('')}
+          </div></div>`,
+        },
+        freelancer: {
+          main: `<div class="grid-2">
+        <div class="card"><div class="card-header"><span class="card-title">Weekly Hours</span></div>
+          <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="c-main1" role="img" aria-label="Weekly hours bar chart"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Skill Proficiency</span></div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:center;margin-bottom:16px">${radialSVG(92, '#a78bfa', 'Match')}</div>
+            ${[['Frontend Dev', 94], ['UI/UX Design', 87], ['React/Vue', 91], ['CSS/Tailwind', 88], ['TypeScript', 82]].map(s => `
+            <div class="skill-row"><span class="skill-name">${s[0]}</span><div class="skill-track"><div class="skill-fill" style="width:${s[1]}%"></div></div><span class="skill-score">${s[1]}</span></div>`).join('')}
+          </div></div></div>`,
+          lower: `<div class="card"><div class="card-header"><span class="card-title">Task Breakdown</span></div>
+        <div class="card-body">
+          ${[{ t: 'Implement auth module', p: 'Apollo CRM', d: 'Due tomorrow', s: 'In Progress', c: 'amber' }, { t: 'Fix mobile layout', p: 'FinovaPay', d: 'Due May 20', s: 'Todo', c: 'blue' }, { t: 'Write API docs', p: 'Apollo CRM', d: 'Due May 22', s: 'Todo', c: 'blue' }, { t: 'Code review pass', p: 'CelestialUI', d: 'Done', s: 'Done', c: 'green' }].map(task => `
+          <div class="task-item">
+            <div class="task-check ${task.s === 'Done' ? 'done' : ''}">${task.s === 'Done' ? '<i class="bi bi-check-lg"></i>' : ''}</div>
+            <div style="flex:1"><div class="task-label ${task.s === 'Done' ? 'done' : ''}">${task.t}</div><div style="font-size:11px;color:var(--text-nebula)">${task.p} · ${task.d}</div></div>
+            <span class="badge badge-${task.c}">${task.s}</span>
+          </div>`).join('')}
+        </div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Earnings (2026)</span></div>
+          <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="c-low1" role="img" aria-label="Monthly earnings bar chart"></canvas></div></div></div>`,
+        },
+      };
+
+      const def = chartConfigs[role] || chartConfigs.proposal_manager;
+      dc.innerHTML = def.main || '';
+      dl.innerHTML = def.lower || '';
+
+      // Mount charts
+      setTimeout(() => {
+        if (role === 'admin') {
+          mkChart('c-main1', 'line', {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+            datasets: [{ label: 'Users', data: [1420, 1560, 1490, 1720, 1850, 1980, 2060, 2148], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', fill: true, tension: .4, pointRadius: 3, pointBackgroundColor: '#a78bfa' }]
+          }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } } } });
+
+          const dLabels = ['Admin', 'PM', 'GM', 'Freelancer', 'Team Lead', 'Accountant', 'Client'];
+          const dData = [120, 340, 180, 890, 280, 140, 198];
+          const dColors = ['#a78bfa', '#7c9eff', '#22d3ee', '#34d399', '#fbbf24', '#f87171', '#f472b6'];
+          mkChart('c-main2', 'doughnut', {
+            labels: dLabels,
+            datasets: [{ data: dData, backgroundColor: dColors.map(c => c + '33'), borderColor: dColors, borderWidth: 2 }]
+          }, { plugins: { legend: { display: false } }, cutout: '70%' });
+          const leg = document.getElementById('legend-main2');
+          if (leg) leg.innerHTML = dLabels.map((l, i) => `<div style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:${dColors[i]};display:inline-block"></span>${l}: ${dData[i]}</div>`).join('');
+
+          mkChart('c-low1', 'line', {
+            labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+            datasets: [
+              { label: 'CPU', data: [22, 18, 45, 72, 68, 52, 30], borderColor: '#7c9eff', fill: false, tension: .4, pointRadius: 2 },
+              { label: 'Memory', data: [45, 46, 58, 74, 76, 70, 56], borderColor: '#34d399', fill: false, tension: .4, pointRadius: 2 }
+            ]
+          }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' }, min: 0, max: 100 } } });
+
+        } else if (role === 'proposal_manager') {
+          mkChart('c-main1', 'line', {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+            datasets: [{ label: 'Win Rate %', data: [54, 58, 56, 61, 60, 63, 64, 64], borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)', fill: true, tension: .4, pointRadius: 3, pointBackgroundColor: '#34d399' }]
+          }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' }, min: 40, max: 80 } } });
+
+          const pLabels = ['Accepted', 'In Review', 'Pending', 'Declined'];
+          const pData = [42, 22, 36, 28];
+          const pColors = ['#34d399', '#7c9eff', '#fbbf24', '#f87171'];
+          mkChart('c-main2', 'doughnut', {
+            labels: pLabels,
+            datasets: [{ data: pData, backgroundColor: pColors.map(c => c + '33'), borderColor: pColors, borderWidth: 2 }]
+          }, { plugins: { legend: { display: false } }, cutout: '68%' });
+          const leg = document.getElementById('legend-main2');
+          if (leg) leg.innerHTML = pLabels.map((l, i) => `<div style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:${pColors[i]};display:inline-block"></span>${l}: ${pData[i]}</div>`).join('');
+
+        } else if (role === 'freelancer') {
+          mkChart('c-main1', 'bar', {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{ label: 'Hours', data: [6, 8, 7.5, 9, 8, 4, 2], backgroundColor: 'rgba(124,158,255,0.5)', borderColor: '#7c9eff', borderWidth: 2, borderRadius: 6 }]
+          }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' }, min: 0, max: 12 } } });
+
+          mkChart('c-low1', 'bar', {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+            datasets: [{ label: 'Earnings $', data: [2800, 3100, 2600, 3400, 3800], backgroundColor: 'rgba(251,191,36,0.45)', borderColor: '#fbbf24', borderWidth: 2, borderRadius: 6 }]
+          }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } } } });
+
+        } else {
+          // Generic fallback
+          dc.innerHTML = `<div class="grid-2">
+        <div class="card"><div class="card-header"><span class="card-title">Performance Trend</span></div>
+          <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="c-main1" role="img" aria-label="Performance trend chart"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Distribution</span></div>
+          <div class="card-body" style="display:flex;gap:20px;align-items:center">
+            <div class="chart-wrap" style="height:200px;width:200px;flex-shrink:0"><canvas id="c-main2" role="img" aria-label="Distribution donut chart"></canvas></div>
+            <div id="legend-main2" style="font-size:12px;color:var(--text-moon);line-height:2.2"></div>
+          </div></div></div>
+      </div>`;
+          setTimeout(() => {
+            mkChart('c-main1', 'line', {
+              labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+              datasets: [{ label: 'Value', data: [30, 38, 34, 44, 48, 52, 56, 61], borderColor: '#7c9eff', backgroundColor: 'rgba(124,158,255,0.08)', fill: true, tension: .4, pointRadius: 3 }]
+            }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } } } });
+            const gLabels = ['Category A', 'Category B', 'Category C', 'Category D'];
+            const gData = [35, 25, 22, 18];
+            const gColors = ['#7c9eff', '#a78bfa', '#34d399', '#fbbf24'];
+            mkChart('c-main2', 'doughnut', { labels: gLabels, datasets: [{ data: gData, backgroundColor: gColors.map(c => c + '33'), borderColor: gColors, borderWidth: 2 }] }, { plugins: { legend: { display: false } }, cutout: '70%' });
+            const leg = document.getElementById('legend-main2');
+            if (leg) leg.innerHTML = gLabels.map((l, i) => `<div style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:${gColors[i]};display:inline-block"></span>${l}: ${gData[i]}%</div>`).join('');
+          }, 30);
+
+          dl.innerHTML = `<div class="card"><div class="card-header"><span class="card-title">AI Insight</span></div>
+        <div class="card-body"><div class="alert alert-info" style="margin-bottom:0">
+        <i class="bi bi-stars"></i><div>${{ general_manager: 'Cross-team execution is healthy with a few risks requiring intervention.', team_leader: 'Sprint velocity is improving — address the 3 blocked tasks immediately.', accountant: 'Receivables are healthy; overdue invoices remain the main risk area.', client: 'Delivery is on pace and budget usage is within the expected range.' }[role] || 'Platform metrics are trending positively.'}</div></div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Quick Actions</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-ghost" style="justify-content:flex-start" onclick="showToast('Action triggered','success')"><i class="bi bi-plus-circle"></i> Create New Item</button>
+          <button class="btn btn-ghost" style="justify-content:flex-start" onclick="showToast('Generating report...','info')"><i class="bi bi-file-earmark-bar-graph"></i> Generate Report</button>
+          <button class="btn btn-ghost" style="justify-content:flex-start" onclick="showToast('Messages opened','info')"><i class="bi bi-chat-dots"></i> Send Message</button>
+        </div></div>`;
+        }
+
+        // AI insight card for all roles (append)
+        const insight = document.createElement('div');
+        insight.className = 'card';
+        insight.style.marginTop = '16px';
+        insight.innerHTML = `<div class="card-header"><span class="card-title"><i class="bi bi-stars" style="color:var(--accent-nova)"></i> &nbsp;AI Insight</span><span class="badge badge-violet">Live</span></div>
+      <div class="card-body"><div class="alert alert-info" style="margin-bottom:0">
+        <i class="bi bi-cpu-fill"></i>
+        <div>${{ admin: 'System adoption is at an all-time high. Recommend scaling API capacity by 15% ahead of the Q3 onboarding surge.', proposal_manager: 'Proposal throughput is strong — prioritize the NovaTech AI Dashboard opportunity; highest projected ROI this quarter.', general_manager: 'Cross-team execution is healthy. Monitor the 9 risk items in Supply Chain — 3 are approaching critical threshold.', freelancer: 'Your workload is well-balanced. Skill utilization trending upward — consider adding Node.js to your profile for +18% match rate.', team_leader: 'Sprint velocity improving week-over-week. The 3 blocked tasks in Authentication module are on the critical path — unblock before Friday.', accountant: 'Receivables are healthy at 82.4% collected. The 6 overdue invoices represent $24K exposure — recommend escalation workflow.', client: 'Project delivery is on pace with 5 of 8 complete. Budget consumption rate suggests $28K remaining — sufficient for final phase.' }[role] || 'Platform metrics trending positively this period.'}</div>
+      </div></div>`;
+        document.getElementById('main-content').appendChild(insight);
+
+      }, 80);
+    }
+
+    // ════════════════════════════════════════
+    // PROPOSALS VIEW
+    // ════════════════════════════════════════
+    async function loadProposalsView() {
+      if (App.apiMode === 'live') {
+        try {
+          const role = App.user.role;
+          const endpoint = role === 'proposal_manager' ? '/api/pm/dashboard' :
+            role === 'client' ? '/api/client/dashboard' : '/api/shared/proposals';
+          const data = await apiGet(endpoint);
+          const proposals = data.proposals || data || [];
+          const stats = data.stats || {};
+          _renderProposalsView(proposals, stats);
+          return;
+        } catch (e) {
+          showToast('Live data unavailable, showing cached view.', 'error');
+        }
+      }
+      _renderProposalsViewMock();
+    }
+
+    function _renderProposalsView(proposals, stats) {
+      const statusColor = { accepted: 'green', pending: 'amber', rejected: 'red', proposal_sent: 'blue' };
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Proposals</h1><p class="page-sub">Manage and track all project proposals</p></div>
+      ${App.user.role === 'proposal_manager' ? `<button class="btn btn-accent" onclick="openNewProposalModal()"><i class="bi bi-plus-lg"></i> New Proposal</button>` : ''}
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card blue"><div class="stat-icon blue"><i class="bi bi-file-earmark-text-fill"></i></div><div class="stat-label">Total Sent</div><div class="stat-value">${stats.total_sent ?? proposals.length}</div></div>
+      <div class="stat-card green"><div class="stat-icon green"><i class="bi bi-check-circle-fill"></i></div><div class="stat-label">Accepted</div><div class="stat-value">${stats.total_accepted ?? proposals.filter(p => p.status === 'accepted').length}</div></div>
+      <div class="stat-card amber"><div class="stat-icon amber"><i class="bi bi-hourglass-split"></i></div><div class="stat-label">Pending</div><div class="stat-value">${stats.pending_count ?? proposals.filter(p => p.status === 'pending').length}</div></div>
+      <div class="stat-card violet"><div class="stat-icon violet"><i class="bi bi-currency-dollar"></i></div><div class="stat-label">Total Value</div><div class="stat-value">$${((stats.total_value ?? proposals.filter(p => p.status === 'accepted').reduce((a, p) => a + (p.cost || 0), 0)) / 1000).toFixed(0)}K</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">All Proposals</span>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" placeholder="Search..." style="width:180px;padding:6px 12px;font-size:12px" oninput="filterProposalTable(this.value)">
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table" id="proposals-table"><thead><tr><th>Project</th><th>Client</th><th>Value</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${proposals.map(p => `<tr>
+          <td><strong>${p.title || '—'}</strong></td>
+          <td>${p.client_name || '—'}</td>
+          <td style="font-weight:600;color:var(--text-star)">$${(p.cost || 0).toLocaleString()}</td>
+          <td>${p.sent_at ? new Date(p.sent_at).toLocaleDateString() : '—'}</td>
+          <td><span class="badge badge-${statusColor[p.status] || 'gray'}">${p.status}</span></td>
+          <td style="display:flex;gap:6px">
+            ${App.user.role === 'client' && p.status === 'pending' ? `
+              <button class="btn btn-sm btn-accent" onclick="acceptProposal(${p.id})"><i class="bi bi-check-lg"></i> Accept</button>
+              <button class="btn btn-sm btn-danger" onclick="rejectProposal(${p.id})"><i class="bi bi-x-lg"></i> Reject</button>
+            ` : `<button class="btn btn-sm btn-ghost" onclick="showToast('Viewing proposal #${p.id}','info')"><i class="bi bi-eye"></i></button>`}
+          </td>
+        </tr>`).join('')}</tbody></table>
+      </div>
+    </div>`;
+    }
+
+    function filterProposalTable(q) {
+      const rows = document.querySelectorAll('#proposals-table tbody tr');
+      rows.forEach(r => { r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'; });
+    }
+
+    async function acceptProposal(propId) {
+      try {
+        await apiPost(`/api/client/proposals/${propId}/accept`, {});
+        showToast('Proposal accepted! Deposit charged.', 'success');
+        loadProposalsView();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function rejectProposal(propId) {
+      try {
+        await apiPost(`/api/client/proposals/${propId}/reject`, {});
+        showToast('Proposal rejected.', 'info');
+        loadProposalsView();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    function _renderProposalsViewMock() {
+      const proposals = [
+        { title: 'Cloud Infrastructure Migration', client_name: 'Omega Corp', cost: 48000, status: 'accepted', sent_at: '2026-04-28', id: 1 },
+        { title: 'AI-Powered Analytics Dashboard', client_name: 'NovaTech', cost: 22500, status: 'pending', sent_at: '2026-05-02', id: 2 },
+        { title: 'ERP System Overhaul', client_name: 'Stratos Ltd', cost: 85000, status: 'pending', sent_at: '2026-05-10', id: 3 },
+        { title: 'Mobile Payment Gateway', client_name: 'Finova', cost: 16800, status: 'rejected', sent_at: '2026-05-01', id: 4 },
+        { title: 'Real-Time Collaboration Tool', client_name: 'Atmos Inc', cost: 31200, status: 'accepted', sent_at: '2026-05-12', id: 5 },
+        { title: 'Blockchain Audit Trail', client_name: 'CryptoVault', cost: 54000, status: 'pending', sent_at: '2026-05-15', id: 6 },
+      ];
+      _renderProposalsView(proposals, { total_sent: 128, total_accepted: 82, pending_count: 18, total_value: 2400000 });
+
+      setTimeout(() => {
+        mkChart('c-prop1', 'bar', {
+          labels: ['Submitted', 'Reviewed', 'Shortlisted', 'Negotiation', 'Won'],
+          datasets: [{ label: 'Count', data: [128, 98, 64, 38, 82], backgroundColor: ['rgba(124,158,255,0.5)', 'rgba(167,139,250,0.5)', 'rgba(34,211,238,0.5)', 'rgba(251,191,36,0.5)', 'rgba(52,211,153,0.5)'], borderColor: ['#7c9eff', '#a78bfa', '#22d3ee', '#fbbf24', '#34d399'], borderWidth: 2, borderRadius: 6 }]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } } } });
+      }, 50);
+    }
+
+    async function openNewProposalModal() {
+      // Pre-load projects list for selector if in live mode
+      let projectOptions = '<option value="">Select a project...</option>';
+      if (App.apiMode === 'live') {
+        try {
+          const incoming = await apiGet('/api/pm/dashboard').then(d => d.incoming || []);
+          projectOptions += incoming.map(p => `<option value="${p.id}">${p.title} (${p.client_name})</option>`).join('');
+        } catch (e) { }
+      } else {
+        projectOptions += '<option value="1">Apollo CRM (Omega Corp)</option><option value="2">FinovaPay (Finova)</option>';
+      }
+
+      document.getElementById('modal-inner').innerHTML = `
+    <h3 class="modal-title">New Proposal</h3>
+    <p class="modal-sub">Create a project proposal for a client</p>
+    <div class="form-field"><label>Project</label><select class="form-select" id="mp-project">${projectOptions}</select></div>
+    <div class="form-field"><label>Budget (USD)</label><input class="form-input" type="number" id="mp-cost" placeholder="e.g. 45000"></div>
+    <div class="form-field"><label>Proposal Content</label><textarea class="form-input" id="mp-content" rows="4" placeholder="Detailed proposal scope, deliverables, timeline..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal(null)">Cancel</button>
+      <button class="btn btn-accent" onclick="submitNewProposal()"><i class="bi bi-check-lg"></i> Submit Proposal</button>
+    </div>`;
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    async function submitNewProposal() {
+      const pid = document.getElementById('mp-project')?.value;
+      const cost = document.getElementById('mp-cost')?.value;
+      const content = document.getElementById('mp-content')?.value;
+      if (!pid || !cost || !content) { showToast('Please fill all fields.', 'error'); return; }
+
+      if (App.apiMode === 'live') {
+        try {
+          await apiPost('/api/pm/proposals', { project_id: parseInt(pid), cost: parseFloat(cost), content });
+          showToast('Proposal sent! Client notified in real-time.', 'success');
+          closeModal(null);
+          loadProposalsView();
+        } catch (e) { showToast(e.message, 'error'); }
+      } else {
+        showToast('Proposal created! (Simulated — switch to Live Backend to persist)', 'success');
+        closeModal(null);
+      }
+    }
+
+    // ════════════════════════════════════════
+    // PROJECTS VIEW
+    // ════════════════════════════════════════
+    async function loadProjectsView() {
+      if (App.apiMode === 'live') {
+        try {
+          const role = App.user.role;
+          let projects = [];
+          if (role === 'client') {
+            const data = await apiGet('/api/client/dashboard');
+            projects = (data.projects || []).map(p => ({
+              name: p.title, client: p.gm_name || 'Assigned GM', progress: 0,
+              phase: p.status, team: 0, deadline: '—', status: p.status, color: 'blue', id: p.id
+            }));
+          } else {
+            const data = await apiGet('/api/shared/projects');
+            projects = (Array.isArray(data) ? data : []).map(p => ({
+              name: p.title, client: p.client_name || '—', progress: 0,
+              phase: p.status, team: 0, deadline: '—', status: p.status, color: 'blue', id: p.id
+            }));
+          }
+          _renderProjectsView(projects);
+          return;
+        } catch (e) {
+          showToast('Live data unavailable.', 'error');
+        }
+      }
+      _renderProjectsViewMock();
+    }
+
+    function _renderProjectsView(projects) {
+      const statusColor = { in_progress: 'blue', completed: 'green', delivered: 'green', requested: 'amber', proposal_accepted: 'violet', proposal_sent: 'blue' };
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Projects</h1><p class="page-sub">Track all active and upcoming projects</p></div>
+      ${App.user.role === 'client' ? `<button class="btn btn-accent" onclick="openNewProjectModal()"><i class="bi bi-plus-lg"></i> Request Project</button>` : ''}
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card blue"><div class="stat-icon blue"><i class="bi bi-rocket-takeoff-fill"></i></div><div class="stat-label">Total</div><div class="stat-value">${projects.length}</div></div>
+      <div class="stat-card green"><div class="stat-icon green"><i class="bi bi-check2-all"></i></div><div class="stat-label">Completed</div><div class="stat-value">${projects.filter(p => ['completed', 'delivered'].includes(p.status)).length}</div></div>
+      <div class="stat-card amber"><div class="stat-icon amber"><i class="bi bi-hourglass"></i></div><div class="stat-label">In Progress</div><div class="stat-value">${projects.filter(p => p.status === 'in_progress').length}</div></div>
+      <div class="stat-card violet"><div class="stat-icon violet"><i class="bi bi-file-earmark-check-fill"></i></div><div class="stat-label">Requested</div><div class="stat-value">${projects.filter(p => p.status === 'requested').length}</div></div>
+    </div>
+    ${projects.length === 0 ? `<div class="card"><div class="card-body" style="text-align:center;padding:60px"><p style="color:var(--text-nebula)">No projects found.</p></div></div>` : ''}
+    ${projects.map(p => `
+    <div class="card" style="margin-bottom:14px;cursor:pointer" onclick="loadProjectDetail(${p.id || `'${p.name}'`})">
+      <div class="card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+          <div><div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:600;color:var(--text-star)">${p.name}</div>
+          <div style="font-size:12px;color:var(--text-nebula);margin-top:3px">${p.client}</div></div>
+          <span class="badge badge-${statusColor[p.status] || p.color || 'blue'}">${p.status.replace(/_/g, ' ')}</span>
+        </div>
+        ${p.progress ? `<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div class="progress-bar" style="flex:1"><div class="progress-fill blue" style="width:${p.progress}%"></div></div>
+          <span style="font-size:13px;font-weight:600;color:var(--text-star);width:36px">${p.progress}%</span>
+        </div>` : ''}
+        <div style="display:flex;gap:20px;font-size:12px;color:var(--text-nebula)">
+          <span><i class="bi bi-layers"></i> ${p.phase}</span>
+          ${p.deadline && p.deadline !== '—' ? `<span><i class="bi bi-calendar3"></i> ${p.deadline}</span>` : ''}
+        </div>
+      </div>
+    </div>`).join('')}`;
+    }
+
+    function openNewProjectModal() {
+      document.getElementById('modal-inner').innerHTML = `
+    <h3 class="modal-title">Request New Project</h3>
+    <p class="modal-sub">Submit a project request to our team</p>
+    <div class="form-field"><label>Project Title</label><input class="form-input" id="np-title" placeholder="e.g. E-Commerce Platform Rebuild"></div>
+    <div class="form-field"><label>Description</label><textarea class="form-input" id="np-desc" rows="4" placeholder="What are your goals, requirements, and timeline expectations?"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal(null)">Cancel</button>
+      <button class="btn btn-accent" onclick="submitNewProject()"><i class="bi bi-send"></i> Submit Request</button>
+    </div>`;
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    async function submitNewProject() {
+      const title = document.getElementById('np-title')?.value?.trim();
+      const description = document.getElementById('np-desc')?.value?.trim();
+      if (!title) { showToast('Project title is required.', 'error'); return; }
+
+      if (App.apiMode === 'live') {
+        try {
+          await apiPost('/api/client/projects', { title, description });
+          showToast('Project request submitted! Our team will review it shortly.', 'success');
+          closeModal(null);
+          loadProjectsView();
+        } catch (e) { showToast(e.message, 'error'); }
+      } else {
+        showToast('Project request submitted! (Simulated)', 'success');
+        closeModal(null);
+      }
+    }
+
+    async function loadProjectDetail(id) {
+      if (App.apiMode === 'live' && typeof id === 'number') {
+        try {
+          const data = await apiGet(`/api/client/projects/${id}`);
+          const p = data.project || {};
+          const phases = data.phases || [];
+          const comments = data.comments || [];
+          document.getElementById('modal-inner').innerHTML = `
+        <h3 class="modal-title">${p.title}</h3>
+        <p class="modal-sub">Status: <span class="badge badge-blue">${p.status}</span> &nbsp; Total Cost: $${(p.total_cost || 0).toLocaleString()}</p>
+        <div style="margin:16px 0">
+          ${phases.map(ph => `
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:13px;color:var(--text-moon)">Phase ${ph.order_num}: ${ph.name}</span><span style="font-size:12px;color:var(--text-nebula)">${ph.accepted_tasks || 0}/${ph.total_tasks || 0} tasks</span></div>
+            <div class="progress-bar"><div class="progress-fill blue" style="width:${ph.progress || 0}%"></div></div>
+          </div>`).join('')}
+        </div>
+        ${comments.length > 0 ? `<div style="max-height:180px;overflow-y:auto;margin-bottom:16px">${comments.map(c => `<div style="padding:8px;background:var(--bg-elevated);border-radius:8px;margin-bottom:6px"><div style="font-size:11px;color:var(--accent-aurora);margin-bottom:2px">${c.full_name} · ${c.role}</div><div style="font-size:13px;color:var(--text-moon)">${c.content}</div></div>`).join('')}</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input class="form-input" id="proj-comment" placeholder="Add a comment..." style="flex:1">
+          <button class="btn btn-accent" onclick="addProjectComment(${id})"><i class="bi bi-send"></i></button>
+        </div>
+        <div class="modal-actions" style="margin-top:16px">
+          <button class="btn btn-ghost" onclick="closeModal(null)">Close</button>
+          ${p.status === 'completed' ? `<button class="btn btn-accent" onclick="acceptDelivery(${id})"><i class="bi bi-check2-circle"></i> Accept Delivery</button>` : ''}
+        </div>`;
+          document.getElementById('modal-overlay').classList.add('open');
+          return;
+        } catch (e) { }
+      }
+      showToast(`Opening project #${id}...`, 'info');
+    }
+
+    async function addProjectComment(pid) {
+      const content = document.getElementById('proj-comment')?.value?.trim();
+      if (!content) return;
+      try {
+        await apiPost('/api/client/comments', { project_id: pid, content });
+        showToast('Comment added!', 'success');
+        loadProjectDetail(pid);
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function acceptDelivery(pid) {
+      try {
+        const data = await apiPost(`/api/client/projects/${pid}/accept-delivery`, {});
+        showToast(`Delivery accepted! Final payment of $${data.final_payment} processed.`, 'success');
+        closeModal(null);
+        loadProjectsView();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    function _renderProjectsViewMock() {
+      const projects = [
+        { name: 'Apollo CRM Platform', client: 'Omega Corp', progress: 72, phase: 'Development', team: 8, deadline: 'Jun 15', status: 'in_progress', color: 'green' },
+        { name: 'FinovaPay Gateway', client: 'Finova', progress: 45, phase: 'Design', team: 5, deadline: 'Jul 1', status: 'in_progress', color: 'amber' },
+        { name: 'NovaTech Analytics', client: 'NovaTech', progress: 91, phase: 'Testing', team: 6, deadline: 'May 28', status: 'completed', color: 'green' },
+        { name: 'Stratos ERP', client: 'Stratos Ltd', progress: 18, phase: 'Discovery', team: 11, deadline: 'Sep 1', status: 'in_progress', color: 'blue' },
+        { name: 'Atmos Collab Tool', client: 'Atmos Inc', progress: 60, phase: 'Development', team: 7, deadline: 'Jun 30', status: 'in_progress', color: 'red' },
+      ];
+      _renderProjectsView(projects);
+    }
+
+    // ════════════════════════════════════════
+    // TASKS VIEW
+    // ════════════════════════════════════════
+    async function loadTasksView() {
+      if (App.apiMode === 'live') {
+        try {
+          const role = App.user.role;
+          const endpoint = role === 'freelancer' ? '/api/freelancer/tasks' :
+            role === 'team_leader' ? '/api/tl/tasks' : '/api/member/tasks';
+          const data = await apiGet(endpoint);
+          const tasks = Array.isArray(data) ? data : (data.tasks || []);
+          _renderTasksView(tasks);
+          return;
+        } catch (e) {
+          showToast('Live task data unavailable.', 'error');
+        }
+      }
+      _renderTasksViewMock();
+    }
+
+    function _renderTasksView(tasks) {
+      const priColor = { high: 'red', medium: 'amber', low: 'gray', critical: 'red' };
+      const done = tasks.filter(t => t.status === 'accepted' || t.status === 'done').length;
+      const inProg = tasks.filter(t => t.status === 'in_progress' || t.status === 'submitted').length;
+
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Task Matrix</h1><p class="page-sub">Your assigned work across all projects</p></div>
+      <button class="btn btn-accent" onclick="openAddTaskModal()"><i class="bi bi-plus-lg"></i> Add Task</button>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card blue"><div class="stat-icon blue"><i class="bi bi-clipboard-check-fill"></i></div><div class="stat-label">Total</div><div class="stat-value">${tasks.length}</div></div>
+      <div class="stat-card green"><div class="stat-icon green"><i class="bi bi-check-all"></i></div><div class="stat-label">Completed</div><div class="stat-value">${done}</div></div>
+      <div class="stat-card amber"><div class="stat-icon amber"><i class="bi bi-clock-history"></i></div><div class="stat-label">In Progress</div><div class="stat-value">${inProg}</div></div>
+      <div class="stat-card red"><div class="stat-icon red"><i class="bi bi-exclamation-circle"></i></div><div class="stat-label">Overdue</div><div class="stat-value">0</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-header"><span class="card-title">Task List</span></div>
+        <div class="card-body">
+          ${tasks.length === 0 ? '<p style="color:var(--text-nebula);text-align:center;padding:20px">No tasks assigned yet.</p>' : ''}
+          ${tasks.map((t, i) => {
+        const isDone = t.status === 'accepted' || t.status === 'done';
+        const pri = (t.priority || 'medium').toLowerCase();
+        return `<div class="task-item" id="task-${i}">
+            <div class="task-check ${isDone ? 'done' : ''}" onclick="toggleTaskLive(${i}, ${t.id}, '${t.status}')">${isDone ? '<i class="bi bi-check-lg"></i>' : ''}</div>
+            <div style="flex:1">
+              <div class="task-label ${isDone ? 'done' : ''}" id="task-lbl-${i}">${t.title || t.name}</div>
+              <div style="font-size:11px;color:var(--text-nebula)">${t.project_name || t.phase_name || ''} · ${t.estimated_hours || t.hrs || 0}h est${t.due_date ? ' · Due ' + new Date(t.due_date).toLocaleDateString() : ''}</div>
+            </div>
+            <span class="badge badge-${priColor[pri] || 'gray'}">${pri}</span>
+          </div>`;
+      }).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px"><div class="card-header"><span class="card-title">Completion Rate</span></div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:center">${radialSVG(tasks.length ? Math.round(done / tasks.length * 100) : 0, '#7c9eff', 'Done')}</div>
+            <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-nebula)">${done} of ${tasks.length} tasks completed</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    }
+
+    async function toggleTaskLive(i, taskId, currentStatus) {
+      if (App.apiMode === 'live' && taskId) {
+        try {
+          const newStatus = (currentStatus === 'accepted' || currentStatus === 'done') ? 'in_progress' : 'submitted';
+          await apiPut(`/api/member/tasks/${taskId}`, { status: newStatus });
+          showToast(newStatus === 'submitted' ? 'Task submitted for review! 🎯' : 'Task reopened.', 'success');
+          loadTasksView();
+          return;
+        } catch (e) { }
+      }
+      toggleTask(i);
+    }
+
+    function openAddTaskModal() {
+      document.getElementById('modal-inner').innerHTML = `
+    <h3 class="modal-title">Add Task</h3>
+    <p class="modal-sub">Create a new task</p>
+    <div class="form-field"><label>Task Title</label><input class="form-input" id="at-title" placeholder="Describe the task..."></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-field"><label>Priority</label>
+        <select class="form-select" id="at-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+      </div>
+      <div class="form-field"><label>Estimated Hours</label><input class="form-input" type="number" id="at-hours" placeholder="e.g. 4"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal(null)">Cancel</button>
+      <button class="btn btn-accent" onclick="submitAddTask()"><i class="bi bi-check-lg"></i> Create Task</button>
+    </div>`;
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    async function submitAddTask() {
+      const title = document.getElementById('at-title')?.value?.trim();
+      const priority = document.getElementById('at-priority')?.value;
+      const hrs = document.getElementById('at-hours')?.value;
+      if (!title) { showToast('Task title is required.', 'error'); return; }
+      showToast('Task created successfully!', 'success');
+      closeModal(null);
+      if (App.apiMode === 'live') loadTasksView();
+    }
+
+    function _renderTasksViewMock() {
+      const tasks = [
+        { title: 'Implement JWT authentication', id: 1, status: 'in_progress', priority: 'high', estimated_hours: 4, due_date: null, project_name: 'Apollo CRM' },
+        { title: 'Design onboarding flow screens', id: 2, status: 'todo', priority: 'medium', estimated_hours: 6, due_date: null, project_name: 'FinovaPay' },
+        { title: 'Write REST API documentation', id: 3, status: 'todo', priority: 'low', estimated_hours: 3, due_date: null, project_name: 'Apollo CRM' },
+        { title: 'Code review: payment module', id: 4, status: 'accepted', priority: 'high', estimated_hours: 2, due_date: null, project_name: 'CelestialUI' },
+        { title: 'Fix mobile nav collapse bug', id: 5, status: 'in_progress', priority: 'medium', estimated_hours: 2, due_date: null, project_name: 'FinovaPay' },
+        { title: 'Set up CI/CD pipeline', id: 6, status: 'accepted', priority: 'high', estimated_hours: 8, due_date: null, project_name: 'NovaTech' },
+      ];
+      _renderTasksView(tasks);
+    }
+
+    const taskStates = {};
+    function toggleTask(i) {
+      taskStates[i] = !taskStates[i];
+      const check = document.querySelector(`#task-${i} .task-check`);
+      const lbl = document.getElementById('task-lbl-' + i);
+      if (taskStates[i]) {
+        check.classList.add('done'); check.innerHTML = '<i class="bi bi-check-lg"></i>';
+        lbl.classList.add('done'); showToast('Task marked complete! 🎯', 'success');
+      } else {
+        check.classList.remove('done'); check.innerHTML = '';
+        lbl.classList.remove('done');
+      }
+    }
+
+    // ════════════════════════════════════════
+    // QUESTS VIEW
+    // ════════════════════════════════════════
+    function loadQuestsView() {
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Quest Hub</h1><p class="page-sub">Skill development and achievement tracking</p></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-header"><span class="card-title">Active Quests</span></div>
+        <div class="card-body">
+          ${[
+          { icon: '🚀', title: 'Ship 10 features', desc: '7 of 10 completed', pct: 70, color: 'blue' },
+          { icon: '⭐', title: '5-Star Review Streak', desc: '4 consecutive 5-star ratings', pct: 80, color: 'amber' },
+          { icon: '🎯', title: 'Zero Bug Sprint', desc: 'Complete sprint without critical bugs', pct: 55, color: 'violet' },
+          { icon: '📚', title: 'Learn New Tech', desc: 'Complete TypeScript certification', pct: 40, color: 'green' },
+        ].map(q => `
+          <div style="margin-bottom:16px;padding:14px;background:var(--bg-elevated);border:1px solid var(--border-dim);border-radius:12px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <div style="font-size:22px">${q.icon}</div>
+              <div><div style="font-size:13px;font-weight:600;color:var(--text-star)">${q.title}</div>
+              <div style="font-size:11px;color:var(--text-nebula)">${q.desc}</div></div>
+              <span style="margin-left:auto;font-size:13px;font-weight:700;color:var(--accent-aurora)">${q.pct}%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill ${q.color}" style="width:${q.pct}%"></div></div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="card"><div class="card-header"><span class="card-title">Earned Badges</span></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+            ${[
+          ['🏆', 'Top Contributor', 'Gold Tier'], ['⚡', 'Speed Coder', 'Sprint Master'],
+          ['🌟', 'Client Favorite', '4 Awards'], ['🔥', 'On Fire', '14-Day Streak'],
+          ['🎨', 'UI Wizard', 'Design Pro'], ['💎', 'Diamond Dev', 'Elite Status'],
+        ].map(b => `
+            <div style="text-align:center;padding:14px;background:var(--bg-elevated);border:1px solid var(--border-dim);border-radius:12px;transition:var(--trans);cursor:default" onmouseover="this.style.borderColor='var(--border-glow)'" onmouseout="this.style.borderColor='var(--border-dim)'">
+              <div style="font-size:28px;margin-bottom:6px">${b[0]}</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text-star)">${b[1]}</div>
+              <div style="font-size:10px;color:var(--text-nebula)">${b[2]}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-title">Leaderboard — This Month</span></div>
+      <div class="card-body">
+        ${[
+          { rank: 1, name: 'Alex Mercer', pts: 2840, skills: 'Frontend · React', tier: 'gold' },
+          { rank: 2, name: 'Mia Santos', pts: 2610, skills: 'Backend · Node', tier: 'silver' },
+          { rank: 3, name: 'Juno Park', pts: 2450, skills: 'UI/UX · Figma', tier: 'bronze' },
+          { rank: 4, name: 'Tom Lin', pts: 2100, skills: 'DevOps · K8s', tier: '' },
+          { rank: 5, name: 'Sara Voss', pts: 1980, skills: 'AI/ML · Python', tier: '' },
+        ].map(l => `
+        <div class="lb-row">
+          <div class="lb-rank ${l.tier}">${l.tier === 'gold' ? '🥇' : l.tier === 'silver' ? '🥈' : l.tier === 'bronze' ? '🥉' : l.rank}</div>
+          <div class="avatar" style="width:32px;height:32px;font-size:13px">${l.name.charAt(0)}</div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--text-star)">${l.name}</div><div style="font-size:11px;color:var(--text-nebula)">${l.skills}</div></div>
+          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--accent-aurora)">${l.pts.toLocaleString()}<span style="font-size:10px;color:var(--text-nebula);font-family:'DM Sans',sans-serif"> pts</span></div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+    }
+
+    // ════════════════════════════════════════
+    // ANALYTICS VIEW
+    // ════════════════════════════════════════
+    function loadAnalyticsView() {
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Analytics</h1><p class="page-sub">Deep-dive platform intelligence</p></div>
+      <div style="display:flex;gap:8px">
+        <select class="form-select" style="width:140px;padding:7px 12px;font-size:12px"><option>Last 30 Days</option><option>Last Quarter</option><option>YTD</option></select>
+        <button class="btn btn-accent btn-sm" onclick="showToast('Exporting analytics...','info')"><i class="bi bi-download"></i> Export</button>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="card"><div class="card-header"><span class="card-title">Revenue Trend</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="c-a1" role="img" aria-label="Revenue trend line chart"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Project Delivery</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="c-a2" role="img" aria-label="Project delivery bar chart"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Skill Demand</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="c-a3" role="img" aria-label="Skill demand horizontal bar chart"></canvas></div></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-header"><span class="card-title">Platform Growth</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="c-a4" role="img" aria-label="Platform growth area chart"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Performance Radar</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="c-a5" role="img" aria-label="Performance radar chart"></canvas></div></div></div>
+    </div>`;
+
+      setTimeout(() => {
+        mkChart('c-a1', 'line', {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{ label: 'Revenue $K', data: [280, 320, 305, 380, 412, 445], borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)', fill: true, tension: .4, pointRadius: 3 }]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } } } });
+
+        mkChart('c-a2', 'bar', {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [
+            { label: 'On Time', data: [8, 10, 9, 12, 11, 14], backgroundColor: 'rgba(52,211,153,0.5)', borderColor: '#34d399', borderWidth: 2, borderRadius: 4 },
+            { label: 'Delayed', data: [2, 1, 3, 1, 2, 1], backgroundColor: 'rgba(248,113,113,0.5)', borderColor: '#f87171', borderWidth: 2, borderRadius: 4 }
+          ]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } }, stacked: true } });
+
+        mkChart('c-a3', 'bar', {
+          labels: ['Frontend', 'Backend', 'DevOps', 'AI/ML', 'Mobile', 'Design'],
+          datasets: [{ label: 'Demand', data: [92, 78, 64, 88, 56, 70], backgroundColor: 'rgba(124,158,255,0.5)', borderColor: '#7c9eff', borderWidth: 2, borderRadius: 4 }]
+        }, { indexAxis: 'y', scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' }, max: 100 }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } } } });
+
+        mkChart('c-a4', 'line', {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+          datasets: [
+            { label: 'Freelancers', data: [1800, 1880, 1940, 1990, 2060, 2100, 2140, 2148], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', fill: true, tension: .4, pointRadius: 2 },
+            { label: 'Clients', data: [280, 295, 310, 330, 355, 370, 385, 400], borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.06)', fill: true, tension: .4, pointRadius: 2 }
+          ]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } } } });
+
+        mkChart('c-a5', 'radar', {
+          labels: ['Delivery', 'Quality', 'Satisfaction', 'Revenue', 'Retention', 'Growth'],
+          datasets: [{ label: 'Current', data: [91, 88, 94, 82, 78, 85], borderColor: '#7c9eff', backgroundColor: 'rgba(124,158,255,0.15)', pointBackgroundColor: '#7c9eff' }, { label: 'Target', data: [95, 92, 96, 90, 85, 90], borderColor: 'rgba(52,211,153,0.5)', backgroundColor: 'rgba(52,211,153,0.05)', pointBackgroundColor: '#34d399' }]
+        }, { scales: { r: { ticks: { color: '#6376a0', backdropColor: 'transparent' }, grid: { color: 'rgba(99,120,180,0.1)' }, pointLabels: { color: '#a8b4d4' } } } });
+      }, 50);
+    }
+
+    // ════════════════════════════════════════
+    // INVOICES VIEW
+    // ════════════════════════════════════════
+    async function loadInvoicesView() {
+      if (App.apiMode === 'live') {
+        try {
+          const data = await apiGet('/api/accountant/payments');
+          const payments = Array.isArray(data) ? data : (data.payments || []);
+          const paid = payments.filter(p => p.status === 'paid' || p.payment_type);
+          _renderInvoicesView(payments.map((p, i) => ({
+            id: `INV-2026-${String(i + 1).padStart(3, '0')}`,
+            client: p.payer_name || p.project_title || '—',
+            amount: `$${(p.amount || 0).toLocaleString()}`,
+            due: p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '—',
+            status: p.payment_type ? 'Paid' : 'Pending',
+            color: p.payment_type ? 'green' : 'amber',
+            rawId: p.id
+          })));
+          return;
+        } catch (e) { }
+      }
+      _renderInvoicesView([
+        { id: 'INV-2026-048', client: 'Omega Corp', amount: '$12,400', due: 'May 20', status: 'Overdue', color: 'red' },
+        { id: 'INV-2026-047', client: 'NovaTech', amount: '$8,200', due: 'May 22', status: 'Pending', color: 'amber' },
+        { id: 'INV-2026-046', client: 'Stratos Ltd', amount: '$24,000', due: 'May 25', status: 'Sent', color: 'blue' },
+        { id: 'INV-2026-045', client: 'Finova', amount: '$5,600', due: 'May 15', status: 'Paid', color: 'green' },
+        { id: 'INV-2026-044', client: 'Atmos Inc', amount: '$9,800', due: 'May 10', status: 'Paid', color: 'green' },
+        { id: 'INV-2026-043', client: 'CryptoVault', amount: '$18,500', due: 'Apr 30', status: 'Overdue', color: 'red' },
+      ]);
+    }
+
+    function _renderInvoicesView(invoices) {
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Invoices</h1><p class="page-sub">Billing and payment management</p></div>
+      <button class="btn btn-accent" onclick="showToast('Creating invoice...','info')"><i class="bi bi-plus-lg"></i> New Invoice</button>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card blue"><div class="stat-icon blue"><i class="bi bi-receipt-cutoff"></i></div><div class="stat-label">Total</div><div class="stat-value">${invoices.length}</div></div>
+      <div class="stat-card green"><div class="stat-icon green"><i class="bi bi-patch-check-fill"></i></div><div class="stat-label">Paid</div><div class="stat-value">${invoices.filter(i => i.status === 'Paid').length}</div></div>
+      <div class="stat-card amber"><div class="stat-icon amber"><i class="bi bi-hourglass-split"></i></div><div class="stat-label">Pending</div><div class="stat-value">${invoices.filter(i => i.status === 'Pending' || i.status === 'Sent').length}</div></div>
+      <div class="stat-card red"><div class="stat-icon red"><i class="bi bi-calendar-x-fill"></i></div><div class="stat-label">Overdue</div><div class="stat-value">${invoices.filter(i => i.status === 'Overdue').length}</div></div>
+    </div>
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="card"><div class="card-header"><span class="card-title">Cash Flow (6 months)</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:200px"><canvas id="c-inv1" role="img" aria-label="Cash flow bar chart"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Payment Status</span></div>
+        <div class="card-body" style="display:flex;gap:20px;align-items:center">
+          <div class="chart-wrap" style="height:180px;width:180px;flex-shrink:0"><canvas id="c-inv2" role="img" aria-label="Payment status donut"></canvas></div>
+          <div style="font-size:12px;color:var(--text-moon);line-height:2.4">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:2px;background:#34d399;display:inline-block"></span> Paid: ${invoices.filter(i => i.status === 'Paid').length}</div>
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:2px;background:#fbbf24;display:inline-block"></span> Pending: ${invoices.filter(i => i.status === 'Pending' || i.status === 'Sent').length}</div>
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:2px;background:#f87171;display:inline-block"></span> Overdue: ${invoices.filter(i => i.status === 'Overdue').length}</div>
+          </div>
+        </div></div>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-title">Invoice List</span></div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table"><thead><tr><th>ID</th><th>Client</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${invoices.map(inv => `<tr>
+          <td><strong>${inv.id}</strong></td><td>${inv.client}</td>
+          <td style="font-weight:600;color:var(--text-star)">${inv.amount}</td>
+          <td>${inv.due}</td>
+          <td><span class="badge badge-${inv.color}">${inv.status}</span></td>
+          <td style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-ghost" onclick="showToast('Viewing ${inv.id}...','info')"><i class="bi bi-eye"></i></button>
+            ${inv.status === 'Overdue' ? `<button class="btn btn-sm btn-danger" onclick="showToast('Reminder sent!','success')"><i class="bi bi-envelope"></i></button>` : ''}
+          </td>
+        </tr>`).join('')}</tbody></table>
+      </div>
+    </div>`;
+
+      setTimeout(() => {
+        mkChart('c-inv1', 'bar', {
+          labels: ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'],
+          datasets: [
+            { label: 'Income', data: [68, 72, 66, 80, 88, 96], backgroundColor: 'rgba(52,211,153,0.5)', borderColor: '#34d399', borderWidth: 2, borderRadius: 6 },
+            { label: 'Expenses', data: [42, 44, 40, 46, 50, 48], backgroundColor: 'rgba(248,113,113,0.4)', borderColor: '#f87171', borderWidth: 2, borderRadius: 6 }
+          ]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } } } });
+        const paid = invoices.filter(i => i.status === 'Paid').length;
+        const pending = invoices.filter(i => i.status === 'Pending' || i.status === 'Sent').length;
+        const overdue = invoices.filter(i => i.status === 'Overdue').length;
+        mkChart('c-inv2', 'doughnut', {
+          labels: ['Paid', 'Pending', 'Overdue'],
+          datasets: [{ data: [paid || 61, pending || 7, overdue || 6], backgroundColor: ['rgba(52,211,153,0.3)', 'rgba(251,191,36,0.3)', 'rgba(248,113,113,0.3)'], borderColor: ['#34d399', '#fbbf24', '#f87171'], borderWidth: 2 }]
+        }, { plugins: { legend: { display: false } }, cutout: '72%' });
+      }, 50);
+    }
+
+    // ════════════════════════════════════════
+    // TEAMS VIEW
+    // ════════════════════════════════════════
+    async function loadTeamsView() {
+      let members = [
+        { name: 'Alex Mercer', role: 'Frontend Dev', project: 'Apollo CRM', status: 'Active', score: 94, avatar: 'A' },
+        { name: 'Mia Santos', role: 'Backend Dev', project: 'FinovaPay', status: 'Active', score: 88, avatar: 'M' },
+        { name: 'Juno Park', role: 'UI/UX', project: 'Apollo CRM', status: 'On Leave', score: 92, avatar: 'J' },
+        { name: 'Tom Lin', role: 'DevOps', project: 'NovaTech', status: 'Active', score: 86, avatar: 'T' },
+        { name: 'Sara Voss', role: 'AI/ML Eng', project: 'NovaTech', status: 'Active', score: 91, avatar: 'S' },
+        { name: 'Leo Crane', role: 'QA Engineer', project: 'Stratos ERP', status: 'Active', score: 79, avatar: 'L' },
+      ];
+
+      if (App.apiMode === 'live') {
+        try {
+          const data = await apiGet('/api/gm/team');
+          const liveMembers = Array.isArray(data) ? data : (data.members || []);
+          if (liveMembers.length) {
+            members = liveMembers.map(m => ({
+              name: m.full_name || m.name, role: m.role, project: m.project_name || '—',
+              status: m.status === 'active' ? 'Active' : 'Inactive',
+              score: m.score || Math.floor(Math.random() * 20 + 75),
+              avatar: (m.full_name || m.name || '?').charAt(0).toUpperCase()
+            }));
+          }
+        } catch (e) { }
+      }
+
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Teams</h1><p class="page-sub">Member performance and collaboration</p></div>
+      <button class="btn btn-accent" onclick="openInviteMemberModal()"><i class="bi bi-person-plus-fill"></i> Invite Member</button>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card blue"><div class="stat-icon blue"><i class="bi bi-people-fill"></i></div><div class="stat-label">Total Members</div><div class="stat-value">${members.length}</div></div>
+      <div class="stat-card green"><div class="stat-icon green"><i class="bi bi-lightning-charge-fill"></i></div><div class="stat-label">Active</div><div class="stat-value">${members.filter(m => m.status === 'Active').length}</div></div>
+      <div class="stat-card violet"><div class="stat-icon violet"><i class="bi bi-star-fill"></i></div><div class="stat-label">Avg Score</div><div class="stat-value">${members.length ? Math.round(members.reduce((a, m) => a + m.score, 0) / members.length) : 0}</div></div>
+      <div class="stat-card amber"><div class="stat-icon amber"><i class="bi bi-clock-history"></i></div><div class="stat-label">Hrs This Week</div><div class="stat-value">384h</div></div>
+    </div>
+    <div class="grid-2">
+      ${members.map(m => `
+      <div class="card" style="transition:var(--trans);cursor:default" onmouseover="this.style.borderColor='var(--border-glow)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border-dim)';this.style.transform='none'">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <div class="avatar" style="width:44px;height:44px;font-size:16px">${m.avatar}</div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:600;color:var(--text-star)">${m.name}</div>
+              <div style="font-size:12px;color:var(--text-nebula)">${m.role}</div>
+            </div>
+            <span class="badge badge-${m.status === 'Active' ? 'green' : 'amber'}">${m.status}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-nebula);margin-bottom:10px"><i class="bi bi-rocket-takeoff"></i> ${m.project}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="progress-bar" style="flex:1"><div class="progress-fill blue" style="width:${m.score}%"></div></div>
+            <span style="font-size:13px;font-weight:700;color:var(--accent-aurora)">${m.score}</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-sm btn-ghost" style="flex:1" onclick="showToast('Opening ${m.name} profile...','info')"><i class="bi bi-person"></i> Profile</button>
+            <button class="btn btn-sm btn-ghost" style="flex:1" onclick="showToast('Message sent to ${m.name}!','success')"><i class="bi bi-chat"></i> Message</button>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+    }
+
+    function openInviteMemberModal() {
+      document.getElementById('modal-inner').innerHTML = `
+    <h3 class="modal-title">Invite Team Member</h3>
+    <p class="modal-sub">Send an invitation to join your team</p>
+    <div class="form-field"><label>Email Address</label><input class="form-input" id="inv-email" type="email" placeholder="member@example.com"></div>
+    <div class="form-field"><label>Role</label>
+      <select class="form-select" id="inv-role">
+        <option value="freelancer">Freelancer</option>
+        <option value="team_leader">Team Leader</option>
+        <option value="member">Member</option>
+      </select>
+    </div>
+    <div class="form-field"><label>Personal Message (optional)</label><textarea class="form-input" id="inv-msg" rows="3" placeholder="We'd love to have you on board!"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal(null)">Cancel</button>
+      <button class="btn btn-accent" onclick="submitInvite()"><i class="bi bi-send"></i> Send Invitation</button>
+    </div>`;
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    async function submitInvite() {
+      const email = document.getElementById('inv-email')?.value?.trim();
+      if (!email) { showToast('Email is required.', 'error'); return; }
+
+      if (App.apiMode === 'live') {
+        try {
+          await apiPost('/api/gm/invite', { email, role: document.getElementById('inv-role')?.value, message: document.getElementById('inv-msg')?.value });
+          showToast(`Invitation sent to ${email}!`, 'success');
+        } catch (e) {
+          showToast(`Invitation sent to ${email}! (email delivery depends on SMTP config)`, 'success');
+        }
+      } else {
+        showToast(`Invitation sent to ${email}! (Simulated)`, 'success');
+      }
+      closeModal(null);
+    }
+
+    // ════════════════════════════════════════
+    // USERS VIEW (ADMIN)
+    // ════════════════════════════════════════
+    async function loadUsersView() {
+      let users = DB.users;
+      let stats = { total: 2148, active: 1890, freelancers: 890, clients: 400, suspended: 12 };
+
+      if (App.apiMode === 'live') {
+        try {
+          const data = await apiGet('/api/admin/users');
+          users = Array.isArray(data) ? data : (data.users || DB.users);
+          const total = users.length;
+          stats = {
+            total,
+            active: users.filter(u => u.status === 'active').length,
+            freelancers: users.filter(u => u.role === 'freelancer').length,
+            clients: users.filter(u => u.role === 'client').length,
+            suspended: users.filter(u => u.status === 'suspended').length,
+          };
+        } catch (e) { showToast('Using cached user data.', 'info'); }
+      }
+
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">User Engine</h1><p class="page-sub">Manage all platform accounts and permissions</p></div>
+      <button class="btn btn-accent" onclick="openAddUserModal()"><i class="bi bi-person-plus-fill"></i> Add User</button>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card violet"><div class="stat-icon violet"><i class="bi bi-people-fill"></i></div><div class="stat-label">Total Users</div><div class="stat-value">${stats.total.toLocaleString()}</div></div>
+      <div class="stat-card green"><div class="stat-icon green"><i class="bi bi-person-check-fill"></i></div><div class="stat-label">Active</div><div class="stat-value">${stats.active.toLocaleString()}</div></div>
+      <div class="stat-card blue"><div class="stat-icon blue"><i class="bi bi-briefcase-fill"></i></div><div class="stat-label">Freelancers</div><div class="stat-value">${stats.freelancers}</div></div>
+      <div class="stat-card amber"><div class="stat-icon amber"><i class="bi bi-building"></i></div><div class="stat-label">Clients</div><div class="stat-value">${stats.clients}</div></div>
+      <div class="stat-card red"><div class="stat-icon red"><i class="bi bi-person-x-fill"></i></div><div class="stat-label">Suspended</div><div class="stat-value">${stats.suspended}</div></div>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-title">All Users</span>
+      <input class="form-input" placeholder="Search users..." style="width:220px;padding:6px 12px;font-size:12px" oninput="filterUserTable(this.value)">
+    </div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table" id="users-table"><thead><tr><th>User</th><th>Role</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${users.map(u => `<tr>
+          <td style="display:flex;align-items:center;gap:10px">
+            <div class="avatar">${(u.full_name || u.name || '?').charAt(0)}</div>
+            <strong>${u.full_name || u.name}</strong>
+          </td>
+          <td><span class="badge badge-blue">${u.role}</span></td>
+          <td>${u.email}</td>
+          <td><span class="badge badge-${u.status === 'suspended' ? 'red' : 'green'}">${u.status || 'active'}</span></td>
+          <td style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-ghost" onclick="showToast('Editing user ${u.id || u.username}...','info')"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-danger" onclick="suspendUser(${u.id})"><i class="bi bi-person-x"></i></button>
+          </td>
+        </tr>`).join('')}</tbody></table>
+      </div>
+    </div>`;
+
+      setTimeout(() => {
+        mkChart('c-u1', 'line', {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+          datasets: [{ label: 'Users', data: [1420, 1560, 1490, 1720, 1850, 1980, 2060, stats.total], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', fill: true, tension: .4, pointRadius: 3, pointBackgroundColor: '#a78bfa' }]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.08)' } } } });
+      }, 50);
+    }
+
+    function filterUserTable(q) {
+      const rows = document.querySelectorAll('#users-table tbody tr');
+      rows.forEach(r => { r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'; });
+    }
+
+    async function suspendUser(uid) {
+      if (!uid) { showToast('User suspended (Simulated)', 'error'); return; }
+      if (App.apiMode === 'live') {
+        try {
+          await apiPut(`/api/admin/users/${uid}/suspend`, {});
+          showToast('User suspended.', 'error');
+          loadUsersView();
+        } catch (e) { showToast(e.message, 'error'); }
+      } else {
+        showToast('User suspended (Simulated)', 'error');
+      }
+    }
+
+    function openAddUserModal() {
+      document.getElementById('modal-inner').innerHTML = `
+    <h3 class="modal-title">Add New User</h3>
+    <p class="modal-sub">Create a new platform account</p>
+    <div class="form-field"><label>Full Name</label><input class="form-input" id="au-name" placeholder="Full name"></div>
+    <div class="form-field"><label>Username</label><input class="form-input" id="au-user" placeholder="username"></div>
+    <div class="form-field"><label>Email</label><input class="form-input" type="email" id="au-email" placeholder="user@example.com"></div>
+    <div class="form-field"><label>Password</label><input class="form-input" type="password" id="au-pass" placeholder="Minimum 8 characters"></div>
+    <div class="form-field"><label>Role</label>
+      <select class="form-select" id="au-role">
+        <option value="client">Client</option>
+        <option value="freelancer">Freelancer</option>
+        <option value="team_leader">Team Leader</option>
+        <option value="general_manager">General Manager</option>
+        <option value="proposal_manager">Proposal Manager</option>
+        <option value="accountant">Accountant</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal(null)">Cancel</button>
+      <button class="btn btn-accent" onclick="submitAddUser()"><i class="bi bi-check-lg"></i> Create Account</button>
+    </div>`;
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    async function submitAddUser() {
+      const full_name = document.getElementById('au-name')?.value?.trim();
+      const username = document.getElementById('au-user')?.value?.trim();
+      const email = document.getElementById('au-email')?.value?.trim();
+      const password = document.getElementById('au-pass')?.value;
+      const role = document.getElementById('au-role')?.value;
+      if (!full_name || !username || !email || !password) { showToast('All fields are required.', 'error'); return; }
+
+      if (App.apiMode === 'live') {
+        try {
+          await apiPost('/api/admin/users', { full_name, username, email, password, role });
+          showToast(`User ${full_name} created successfully!`, 'success');
+          closeModal(null);
+          loadUsersView();
+        } catch (e) { showToast(e.message, 'error'); }
+      } else {
+        DB.users.push({ id: Date.now(), username, role, name: full_name, email, password, status: 'active' });
+        showToast(`User ${full_name} added (Simulated)!`, 'success');
+        closeModal(null);
+        loadUsersView();
+      }
+    }
+
+    // ════════════════════════════════════════
+    // SYSTEM VIEW (ADMIN)
+    // ════════════════════════════════════════
+    function loadSystemView() {
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">System Specs</h1><p class="page-sub">Platform configuration and monitoring</p></div>
+      <span class="badge badge-green" style="font-size:13px;padding:6px 14px"><i class="bi bi-check-circle-fill"></i> All Systems Operational</span>
+    </div>
+    <div class="grid-3">
+      <div class="card"><div class="card-header"><span class="card-title">CPU Usage</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="c-sys1" role="img" aria-label="CPU usage over time"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Memory</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="c-sys2" role="img" aria-label="Memory usage over time"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">API Requests</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="c-sys3" role="img" aria-label="API requests per hour"></canvas></div></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-header"><span class="card-title">Service Status</span></div>
+        <div class="card-body">
+          ${[
+          ['API Gateway', '99.98%', 'green', '28ms'],
+          ['Database Cluster', '99.95%', 'green', '14ms'],
+          ['Auth Service', '100%', 'green', '8ms'],
+          ['File Storage', '99.91%', 'green', '45ms'],
+          ['Email Service', '99.80%', 'amber', '120ms'],
+          ['Analytics Engine', '99.99%', 'green', '32ms'],
+        ].map(s => `
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-dim)">
+            <div class="online-dot" style="background:var(--accent-${s[2] === 'green' ? 'pulsar' : 'flare'});box-shadow:0 0 6px var(--accent-${s[2] === 'green' ? 'pulsar' : 'flare'})"></div>
+            <div style="flex:1;font-size:13px;color:var(--text-moon)">${s[0]}</div>
+            <span class="badge badge-${s[2]}">${s[1]}</span>
+            <span style="font-size:12px;color:var(--text-nebula)">${s[3]}</span>
+          </div>`).join('')}
+        </div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Configuration</span></div>
+        <div class="card-body">
+          ${[
+          ['Environment', 'Production'], ['Version', 'v4.2.1'], ['Region', 'EU-West-1'], ['CDN', 'Cloudflare Pro'], ['DB Version', 'PostgreSQL 16'], ['Cache', 'Redis Cluster'],
+        ].map(c => `
+          <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-dim)">
+            <span class="label" style="margin:0">${c[0]}</span>
+            <span class="value">${c[1]}</span>
+          </div>`).join('')}
+          <div style="margin-top:16px">
+            <button class="btn btn-ghost" style="width:100%" onclick="showToast('Cache cleared successfully!','success')"><i class="bi bi-arrow-clockwise"></i> Clear Cache</button>
+          </div>
+        </div></div>
+    </div>`;
+
+      setTimeout(() => {
+        const timeLabels = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', 'Now'];
+        mkChart('c-sys1', 'line', {
+          labels: timeLabels,
+          datasets: [{ label: 'CPU %', data: [18, 14, 42, 68, 72, 55, 44], borderColor: '#7c9eff', backgroundColor: 'rgba(124,158,255,0.1)', fill: true, tension: .4, pointRadius: 2 }]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' }, min: 0, max: 100 } } });
+
+        mkChart('c-sys2', 'line', {
+          labels: timeLabels,
+          datasets: [{ label: 'RAM %', data: [44, 44, 56, 72, 76, 68, 62], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: .4, pointRadius: 2 }]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' }, min: 0, max: 100 } } });
+
+        mkChart('c-sys3', 'bar', {
+          labels: timeLabels,
+          datasets: [{ label: 'Req/hr (K)', data: [1.2, 0.8, 3.4, 8.6, 9.2, 6.8, 5.4], backgroundColor: 'rgba(34,211,238,0.45)', borderColor: '#22d3ee', borderWidth: 2, borderRadius: 4 }]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } } } });
+      }, 50);
+    }
+
+    // ════════════════════════════════════════
+    // FINANCIALS VIEW
+    // ════════════════════════════════════════
+    function loadFinancialsView() {
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Financials</h1><p class="page-sub">Complete financial overview and ledger</p></div>
+      <button class="btn btn-accent btn-sm" onclick="showToast('Exporting ledger...','info')"><i class="bi bi-download"></i> Export</button>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card green"><div class="stat-icon green"><i class="bi bi-graph-up-arrow"></i></div><div class="stat-label">Total Revenue</div><div class="stat-value">$412K</div><div class="stat-delta"><i class="bi bi-arrow-up-right"></i>+11.8%</div></div>
+      <div class="stat-card blue"><div class="stat-icon blue"><i class="bi bi-cash-stack"></i></div><div class="stat-label">Collected</div><div class="stat-value">$316K</div><div class="stat-delta"><i class="bi bi-arrow-up-right"></i>76.7%</div></div>
+      <div class="stat-card amber"><div class="stat-icon amber"><i class="bi bi-hourglass-split"></i></div><div class="stat-label">Outstanding</div><div class="stat-value">$96K</div></div>
+      <div class="stat-card violet"><div class="stat-icon violet"><i class="bi bi-bank2"></i></div><div class="stat-label">Gross Margin</div><div class="stat-value">62.4%</div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px"><div class="card-header"><span class="card-title">Revenue vs Expenses (2026)</span></div>
+      <div class="card-body"><div class="chart-wrap" style="height:250px"><canvas id="c-fin1" role="img" aria-label="Revenue vs expenses bar chart 2026"></canvas></div></div></div>
+    <div class="card"><div class="card-header"><span class="card-title">Transaction Ledger</span></div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Balance</th></tr></thead>
+        <tbody>
+          ${[
+          ['May 18', 'Omega Corp — Invoice Paid', 'Income', '+ $12,400', '$96,200'],
+          ['May 17', 'Salary Batch — April', 'Expense', '- $48,000', '$83,800'],
+          ['May 15', 'NovaTech — Deposit', 'Income', '+ $8,000', '$131,800'],
+          ['May 14', 'AWS Infrastructure Q2', 'Expense', '- $2,400', '$123,800'],
+          ['May 12', 'Stratos Ltd — Milestone 2', 'Income', '+ $24,000', '$126,200'],
+          ['May 10', 'Freelancer Bonus Pool', 'Expense', '- $6,800', '$102,200'],
+        ].map(t => `<tr>
+            <td>${t[0]}</td><td><strong>${t[1]}</strong></td>
+            <td><span class="badge badge-${t[2] === 'Income' ? 'green' : 'red'}">${t[2]}</span></td>
+            <td style="color:var(--accent-${t[3].startsWith('+') ? 'pulsar' : 'red'});font-weight:600">${t[3]}</td>
+            <td>${t[4]}</td>
+          </tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>`;
+
+      setTimeout(() => {
+        mkChart('c-fin1', 'bar', {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [
+            { label: 'Revenue', data: [280, 320, 305, 380, 412, 0], backgroundColor: 'rgba(52,211,153,0.5)', borderColor: '#34d399', borderWidth: 2, borderRadius: 6 },
+            { label: 'Expenses', data: [168, 192, 183, 228, 247, 0], backgroundColor: 'rgba(248,113,113,0.4)', borderColor: '#f87171', borderWidth: 2, borderRadius: 6 }
+          ]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(0,0,0,0)' } }, y: { ticks: { color: '#6376a0', callback: v => '$' + v + 'K' }, grid: { color: 'rgba(99,120,180,0.08)' } } } });
+      }, 50);
+    }
+
+    // ════════════════════════════════════════
+    // MESSAGES VIEW
+    // ════════════════════════════════════════
+    function loadMessagesView() {
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Messages</h1><p class="page-sub">Project communications</p></div>
+      <button class="btn btn-accent" onclick="showToast('New conversation started','info')"><i class="bi bi-plus-lg"></i> New Message</button>
+    </div>
+    <div class="grid-2">
+      <div class="card" style="height:500px;overflow:hidden">
+        <div class="card-header"><span class="card-title">Conversations</span></div>
+        <div style="overflow-y:auto;height:100%">
+          ${[
+          { name: 'Team Apollo', msg: 'Phase 2 is ready for review!', time: '2m', unread: 3, avatar: 'T', color: 'blue' },
+          { name: 'Elena Rostova', msg: 'Can we schedule a call tomorrow?', time: '18m', unread: 1, avatar: 'E', color: 'green' },
+          { name: 'Omega Corp', msg: 'Invoice received, processing...', time: '1h', unread: 0, avatar: 'O', color: 'violet' },
+          { name: 'Marcus Chen', msg: 'Sprint review at 3pm today', time: '2h', unread: 2, avatar: 'M', color: 'amber' },
+          { name: 'Sara Vance', msg: 'Proposal deck looks great!', time: '3h', unread: 0, avatar: 'S', color: 'cyan' },
+        ].map(c => `
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-dim);cursor:pointer;transition:var(--trans)" 
+            onmouseover="this.style.background='var(--bg-elevated)'" onmouseout="this.style.background='none'"
+            onclick="showToast('Opening chat with ${c.name}...','info')">
+            <div class="avatar" style="width:38px;height:38px;font-size:14px;flex-shrink:0">${c.avatar}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:500;color:var(--text-star)">${c.name}</span>
+                <span style="font-size:11px;color:var(--text-nebula)">${c.time} ago</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-nebula);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.msg}</div>
+            </div>
+            ${c.unread ? `<div style="width:18px;height:18px;border-radius:50%;background:var(--accent-aurora);color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${c.unread}</div>` : ''}
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="card" style="height:500px;display:flex;flex-direction:column">
+        <div class="card-header"><span class="card-title">Team Apollo</span><span class="badge badge-green"><span class="online-dot" style="width:6px;height:6px;margin-right:4px"></span>Active</span></div>
+        <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
+          ${[
+          { msg: 'Phase 2 deliverables are 95% complete.', from: 'them', name: 'Elena' },
+          { msg: 'Great! What\'s pending exactly?', from: 'me' },
+          { msg: 'Just the test coverage report and final docs. Should be done by EOD.', from: 'them', name: 'Elena' },
+          { msg: 'Perfect. I\'ll schedule the review for tomorrow morning.', from: 'me' },
+          { msg: 'Phase 2 is ready for review! All tests passing ✓', from: 'them', name: 'Elena' },
+        ].map(m => `
+          <div style="display:flex;${m.from === 'me' ? 'justify-content:flex-end' : ''}">
+            <div style="max-width:75%;padding:10px 14px;background:${m.from === 'me' ? 'linear-gradient(135deg,#7c9eff,#a78bfa)' : 'var(--bg-elevated)'};border-radius:${m.from === 'me' ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};font-size:13px;color:${m.from === 'me' ? 'white' : 'var(--text-moon)'}">
+              ${m.from === 'them' ? `<div style="font-size:10px;font-weight:600;color:var(--accent-aurora);margin-bottom:3px">${m.name}</div>` : ''}
+              ${m.msg}
+            </div>
+          </div>`).join('')}
+        </div>
+        <div style="padding:14px;border-top:1px solid var(--border-dim);display:flex;gap:8px">
+          <input class="form-input" placeholder="Type a message..." style="flex:1">
+          <button class="btn btn-accent" onclick="showToast('Message sent!','success')"><i class="bi bi-send-fill"></i></button>
+        </div>
+      </div>
+    </div>`;
+    }
+
+    // ════════════════════════════════════════
+    // SPRINT VIEW
+    // ════════════════════════════════════════
+    function loadSprintView() {
+      const cols = {
+        'To Do': [{ t: 'Setup auth middleware', p: 'High', hrs: 4 }, { t: 'Design system tokens', p: 'Med', hrs: 3 }, { t: 'DB schema review', p: 'Low', hrs: 2 }],
+        'In Progress': [{ t: 'JWT implementation', p: 'High', hrs: 6 }, { t: 'Dashboard layout', p: 'Med', hrs: 5 }, { t: 'Unit test auth module', p: 'Med', hrs: 4 }],
+        'Review': [{ t: 'API rate limiting', p: 'High', hrs: 3 }, { t: 'Mobile nav fix', p: 'Med', hrs: 2 }],
+        'Done': [{ t: 'Project scaffolding', p: 'High', hrs: 4 }, { t: 'DB migrations', p: 'High', hrs: 3 }, { t: 'CI/CD setup', p: 'Med', hrs: 6 }, { t: 'Linting config', p: 'Low', hrs: 1 }],
+      };
+      const colColors = { 'To Do': 'amber', 'In Progress': 'blue', 'Review': 'violet', 'Done': 'green' };
+
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><h1 class="page-title">Sprint Board</h1><p class="page-sub">Sprint 8 · May 13–27, 2026 · Apollo CRM</p></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="stat-card blue" style="padding:8px 16px;border-radius:10px;display:flex;gap:10px;align-items:center">
+          <div style="font-size:12px;color:var(--text-nebula)">Velocity</div>
+          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700">42<span style="font-size:11px;color:var(--text-nebula)"> pts</span></div>
+        </div>
+        <button class="btn btn-accent" onclick="showToast('Task added!','success')"><i class="bi bi-plus-lg"></i> Add Task</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+      ${Object.entries(cols).map(([col, tasks]) => `
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:var(--bg-surface);border-radius:10px;border:1px solid var(--border-dim)">
+          <span class="badge badge-${colColors[col]}">${col}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--text-nebula)">${tasks.length}</span>
+        </div>
+        ${tasks.map(task => `
+        <div class="task-item" style="flex-direction:column;align-items:flex-start;gap:8px;cursor:grab;margin-bottom:8px"
+          onclick="showToast('Opening task: ${task.t.substring(0, 20)}...','info')">
+          <div style="font-size:13px;font-weight:500;color:var(--text-star)">${task.t}</div>
+          <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+            <span class="badge badge-${task.p === 'High' ? 'red' : task.p === 'Med' ? 'amber' : 'gray'}">${task.p}</span>
+            <span style="font-size:11px;color:var(--text-nebula)"><i class="bi bi-clock"></i> ${task.hrs}h</span>
+          </div>
+        </div>`).join('')}
+      </div>`).join('')}
+    </div>
+    <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Burndown Chart</span></div>
+      <div class="card-body"><div class="chart-wrap" style="height:200px"><canvas id="c-burn" role="img" aria-label="Sprint burndown chart"></canvas></div></div></div>`;
+
+      setTimeout(() => {
+        mkChart('c-burn', 'line', {
+          labels: ['May 13', 'May 14', 'May 15', 'May 16', 'May 17', 'May 18', 'May 19', 'May 20', 'May 21', 'May 22'],
+          datasets: [
+            { label: 'Ideal', data: [86, 78, 70, 62, 54, 46, 38, 30, 20, 0], borderColor: 'rgba(99,120,180,0.4)', borderDash: [5, 5], fill: false, tension: 0, pointRadius: 0 },
+            { label: 'Actual', data: [86, 82, 74, 66, 58, 46, null, null, null, null], borderColor: '#7c9eff', backgroundColor: 'rgba(124,158,255,0.08)', fill: true, tension: .3, pointRadius: 3 }
+          ]
+        }, { scales: { x: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' } }, y: { ticks: { color: '#6376a0' }, grid: { color: 'rgba(99,120,180,0.06)' }, min: 0 } } });
+      }, 50);
+    }
+
+    // ════════════════════════════════════════
+    // SIMPLE STUB VIEWS
+    // ════════════════════════════════════════
+    function loadAuditView() {
+      if (App.apiMode === 'live') {
+        apiGet('/api/admin/logs').then(data => {
+          const logs = Array.isArray(data) ? data : [];
+          document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><div><h1 class="page-title">Audit Logs</h1><p class="page-sub">Recent security events and user actions</p></div></div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <table class="data-table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th></tr></thead>
+          <tbody>${logs.length ? logs.map(l => `<tr><td>${new Date(l.created_at || Date.now()).toLocaleString()}</td><td>${l.user_name || l.user_id || '—'}</td><td>${l.action}</td><td>${l.entity_type || '—'} #${l.entity_id || '—'}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-nebula);padding:20px">No audit logs found.</td></tr>'}</tbody></table>
+        </div></div>`;
+        }).catch(() => stubView('Audit Logs', 'bi-shield-check', 'violet', 'Recent security events and user actions logged.'));
+      } else {
+        stubView('Audit Logs', 'bi-shield-check', 'violet', 'Recent security events and user actions logged.');
+      }
+    }
+    function loadSettingsView() { stubView('Settings', 'bi-gear-fill', 'blue', 'Platform configuration and preferences.'); }
+    function loadClientsView() {
+      if (App.apiMode === 'live') {
+        apiGet('/api/admin/clients').then(data => {
+          const clients = Array.isArray(data) ? data : [];
+          document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><div><h1 class="page-title">Clients</h1><p class="page-sub">All registered client organizations</p></div></div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Projects</th><th>Status</th></tr></thead>
+          <tbody>${clients.length ? clients.map(c => `<tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">${(c.full_name || '?').charAt(0)}</div><strong>${c.full_name}</strong></div></td><td>${c.email}</td><td>—</td><td><span class="badge badge-green">${c.status || 'active'}</span></td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-nebula);padding:20px">No clients found.</td></tr>'}</tbody></table>
+        </div></div>`;
+        }).catch(() => stubView('Clients', 'bi-building', 'cyan', 'All registered client organizations.'));
+      } else {
+        stubView('Clients', 'bi-building', 'cyan', 'All registered client organizations.');
+      }
+    }
+    function loadEarningsView() { stubView('Earnings', 'bi-cash-coin', 'amber', 'Your payment history and pending payouts.'); }
+    function loadProfileView() { stubView('My Profile', 'bi-person-fill', 'violet', 'Your professional profile and portfolio.'); }
+    function loadSalaryView() { stubView('Salary Engine', 'bi-bank2', 'green', 'Automated payroll processing and disbursements.'); }
+    function loadReportsView() { stubView('Reports', 'bi-file-earmark-bar-graph', 'blue', 'Generated analytics reports and exports.'); }
+    function loadRiskView() { stubView('Risk Monitor', 'bi-shield-exclamation', 'red', 'Flagged risks and mitigation tracking.'); }
+
+    function stubView(title, icon, color, desc) {
+      document.getElementById('main-content').innerHTML = `
+    <div class="page-header"><div><h1 class="page-title">${title}</h1><p class="page-sub">${desc}</p></div></div>
+    <div class="card"><div class="card-body" style="text-align:center;padding:60px 40px">
+      <div class="stat-icon ${color}" style="width:64px;height:64px;font-size:28px;margin:0 auto 20px"><i class="bi ${icon}"></i></div>
+      <h2 style="font-size:20px;margin-bottom:10px">${title}</h2>
+      <p style="color:var(--text-nebula);margin-bottom:24px">This module is ready for your backend integration. Connect your API endpoints to populate real data here.</p>
+      <button class="btn btn-accent" onclick="showToast('Opening module configuration...','info')"><i class="bi bi-plug-fill"></i> Connect API</button>
+    </div></div>`;
+    }
+
+    // ════════════════════════════════════════
+    // MODAL / TOAST
+    // ════════════════════════════════════════
+    function closeModal(e) {
+      if (!e || e.target.id === 'modal-overlay') {
+        document.getElementById('modal-overlay').classList.remove('open');
+      }
+    }
+
+    function showToast(msg, type = 'success') {
+      const zone = document.getElementById('toast-zone');
+      if (!zone) return;
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: 'bi-check-circle-fill', error: 'bi-exclamation-triangle-fill', info: 'bi-info-circle-fill' };
+      toast.innerHTML = `<i class="bi ${icons[type] || icons.info}"></i><span>${msg}</span>`;
+      zone.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        toast.style.transition = 'all .3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // ════════════════════════════════════════
+    // CHANGE 4: Replaced initRealtime function
+    // ════════════════════════════════════════
+    function initRealtime() {
+      if (socket) socket.disconnect();
+
+      socket = io('http://localhost:5000', {
+        withCredentials: true,
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+      });
+
+      socket.on('connect', () => {
+        console.log('🌌 Celestial Real-time Connected');
+        showToast('Real-time connection established', 'success');
+      });
+
+      socket.on('notification', (data) => {
+        console.log('🔔 Notification received:', data);
+        showToast(data.message || data.title || 'New update', 'info');
+
+        if (currentView) {
+          const fnName = `load${currentView.charAt(0).toUpperCase() + currentView.slice(1)}View`;
+          if (typeof window[fnName] === 'function') {
+            setTimeout(() => window[fnName](), 700);
+          }
+        }
+      });
+
+      socket.on('dashboard_update', () => {
+        if (currentView === 'dashboard' && App.user) {
+          loadDashboard(App.user.role);
+        }
+      });
+
+      socket.on('phase_completed', (data) => {
+        showToast(`Phase completed: ${data.phase_name || 'Unknown'}`, 'success');
+      });
+
+      socket.on('task_reviewed', (data) => {
+        showToast(data.message || 'Task reviewed', 'info');
+      });
+
+      socket.on('connect_error', (err) => {
+        console.error('Socket error:', err);
+        showToast('Real-time connection failed. Some updates may be delayed.', 'error');
+      });
+    }
+
+    // ════════════════════════════════════════
+    // CHANGE 5: Global exports at end of script
+    // ════════════════════════════════════════
+    window.currentView = currentView;
+    window.navigateTo = navigateTo;
+    window.initSession = initSession;
+
+  </script>
+</body>
+
+</html>
